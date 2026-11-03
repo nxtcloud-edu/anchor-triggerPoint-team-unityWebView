@@ -1,0 +1,14 @@
+/* 토큰만으로 표현하기 어려운 공통 유틸 */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes tp-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@utility animate-tp-pulse {
+  animation: tp-pulse 1.6s infinite;
+}

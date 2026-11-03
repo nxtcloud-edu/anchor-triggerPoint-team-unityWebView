@@ -1,0 +1,51 @@
+/* 라이트 모드 색상 값 — 색상은 이 파일과 dark-theme.css 에만 정의한다 */
+:root {
+  color-scheme: light;
+
+  --color-bg-page: #f4f4f1;
+  --color-bg-surface: #fcfcfb;
+  --color-bg-surface-2: #f0efec;
+  --color-bg-sidebar: #151a22;
+  --color-bg-sidebar-active: #253041;
+  --color-bg-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --color-bg-accent-wash: rgba(42, 120, 214, 0.1);
+  --color-bg-good-wash: rgba(12, 163, 12, 0.12);
+  --color-bg-warn-wash: rgba(250, 178, 25, 0.18);
+  --color-bg-crit-wash: rgba(208, 59, 59, 0.12);
+  --color-bg-tooltip: #0b0b0b;
+
+  --color-text-primary: #0b0b0b;
+  --color-text-secondary: #52514e;
+  --color-text-muted: #898781;
+  --color-text-sidebar: #c9cdd4;
+  --color-text-sidebar-strong: #ffffff;
+  --color-text-sidebar-muted: #6b717b;
+  --color-text-on-accent: #ffffff;
+  --color-text-tooltip: #fcfcfb;
+  --color-text-warn: #9a6a00;
+
+  --color-border-default: rgba(11, 11, 11, 0.1);
+  --color-border-grid: #e1e0d9;
+  --color-border-axis: #c3c2b7;
+  --color-border-sidebar: rgba(255, 255, 255, 0.08);
+
+  --color-accent: #2a78d6;
+  --color-good: #0ca30c;
+  --color-warn: #fab219;
+  --color-crit: #d03b3b;
+  --color-up: #006300;
+
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #1baf7a;
+  --color-chart-4: #eda100;
+  --color-chart-5: #e87ba4;
+  --color-chart-6: #008300;
+  --color-chart-7: #6250d6;
+  --color-chart-8: #e34948;
+  --color-chart-1-wash: rgba(42, 120, 214, 0.16);
+
+  --color-target-bg: #fbfaf6;
+  --color-target-line: #d9d6cc;
+  --color-target-ring: #8f8b80;
+}

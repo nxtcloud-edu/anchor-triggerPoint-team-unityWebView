@@ -1,0 +1,51 @@
+/* 다크 모드 색상 값 — light-theme.css 와 같은 토큰명 */
+.dark {
+  color-scheme: dark;
+
+  --color-bg-page: #0d0d0d;
+  --color-bg-surface: #1a1a19;
+  --color-bg-surface-2: #232321;
+  --color-bg-sidebar: #111316;
+  --color-bg-sidebar-active: #22272f;
+  --color-bg-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --color-bg-accent-wash: rgba(57, 135, 229, 0.16);
+  --color-bg-good-wash: rgba(12, 163, 12, 0.16);
+  --color-bg-warn-wash: rgba(250, 178, 25, 0.16);
+  --color-bg-crit-wash: rgba(230, 103, 103, 0.16);
+  --color-bg-tooltip: #f0efec;
+
+  --color-text-primary: #f0efec;
+  --color-text-secondary: #c3c2b7;
+  --color-text-muted: #898781;
+  --color-text-sidebar: #a9adb4;
+  --color-text-sidebar-strong: #ffffff;
+  --color-text-sidebar-muted: #6b717b;
+  --color-text-on-accent: #ffffff;
+  --color-text-tooltip: #1a1a19;
+  --color-text-warn: #fab219;
+
+  --color-border-default: rgba(255, 255, 255, 0.1);
+  --color-border-grid: #2c2c2a;
+  --color-border-axis: #383835;
+  --color-border-sidebar: rgba(255, 255, 255, 0.08);
+
+  --color-accent: #3987e5;
+  --color-good: #0ca30c;
+  --color-warn: #fab219;
+  --color-crit: #e66767;
+  --color-up: #0ca30c;
+
+  --color-chart-1: #3987e5;
+  --color-chart-2: #d95926;
+  --color-chart-3: #199e70;
+  --color-chart-4: #c98500;
+  --color-chart-5: #d55181;
+  --color-chart-6: #008300;
+  --color-chart-7: #9085e9;
+  --color-chart-8: #e66767;
+  --color-chart-1-wash: rgba(57, 135, 229, 0.2);
+
+  --color-target-bg: #20201e;
+  --color-target-line: #33332f;
+  --color-target-ring: #77746b;
+}
