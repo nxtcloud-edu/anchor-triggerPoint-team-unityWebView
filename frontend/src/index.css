@@ -1,0 +1,71 @@
+@import 'tailwindcss';
+@import './styles/light-theme.css';
+@import './styles/dark-theme.css';
+@import './styles/theme-utilities.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 테마 CSS 변수 → Tailwind 유틸 (bg-bg-page, text-text-primary, border-border-default …) */
+@theme inline {
+  --font-sans: Pretendard, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-bg-page: var(--color-bg-page);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-bg-surface-2: var(--color-bg-surface-2);
+  --color-bg-sidebar: var(--color-bg-sidebar);
+  --color-bg-sidebar-active: var(--color-bg-sidebar-active);
+  --color-bg-sidebar-hover: var(--color-bg-sidebar-hover);
+  --color-bg-accent-wash: var(--color-bg-accent-wash);
+  --color-bg-good-wash: var(--color-bg-good-wash);
+  --color-bg-warn-wash: var(--color-bg-warn-wash);
+  --color-bg-crit-wash: var(--color-bg-crit-wash);
+  --color-bg-tooltip: var(--color-bg-tooltip);
+
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-sidebar: var(--color-text-sidebar);
+  --color-text-sidebar-strong: var(--color-text-sidebar-strong);
+  --color-text-sidebar-muted: var(--color-text-sidebar-muted);
+  --color-text-on-accent: var(--color-text-on-accent);
+  --color-text-tooltip: var(--color-text-tooltip);
+  --color-text-warn: var(--color-text-warn);
+
+  --color-border-default: var(--color-border-default);
+  --color-border-grid: var(--color-border-grid);
+  --color-border-axis: var(--color-border-axis);
+  --color-border-sidebar: var(--color-border-sidebar);
+
+  --color-accent: var(--color-accent);
+  --color-good: var(--color-good);
+  --color-warn: var(--color-warn);
+  --color-crit: var(--color-crit);
+  --color-up: var(--color-up);
+  --color-chart-1: var(--color-chart-1);
+  --color-chart-2: var(--color-chart-2);
+  --color-chart-3: var(--color-chart-3);
+}
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+  }
+
+  body {
+    background: var(--color-bg-page);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+}

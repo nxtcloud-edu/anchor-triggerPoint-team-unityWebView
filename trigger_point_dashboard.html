@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trigger_Point 영점사격</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f4f4f1; --surface:#fcfcfb; --surface-2:#f0efec; --sidebar:#151a22; --sidebar-ink:#c9cdd4; --sidebar-active:#253041;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781; --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b; --up:#006300;
+  --seq1:#cde2fb; --seq2:#9ec5f4; --seq3:#6da7ec; --seq4:#3987e5; --seq5:#256abf; --seq6:#184f95; --seq7:#0d366b;
+  --accent:#2a78d6; --accent-wash:rgba(42,120,214,.10);
+  --target-bg:#fbfaf6; --target-line:#d9d6cc; --target-ring:#8f8b80;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232321; --sidebar:#111316; --sidebar-ink:#a9adb4; --sidebar-active:#22272f;
+    --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781; --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --up:#0ca30c; --accent:#3987e5; --accent-wash:rgba(57,135,229,.16);
+    --target-bg:#20201e; --target-line:#33332f; --target-ring:#77746b;
+  --seq1:#0d366b; --seq2:#104281; --seq3:#184f95; --seq4:#1c5cab; --seq5:#2a78d6; --seq6:#5598e7; --seq7:#86b6ef;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232321; --sidebar:#111316; --sidebar-ink:#a9adb4; --sidebar-active:#22272f;
+  --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781; --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --up:#0ca30c; --accent:#3987e5; --accent-wash:rgba(57,135,229,.16);
+  --target-bg:#20201e; --target-line:#33332f; --target-ring:#77746b;
+  --seq1:#0d366b; --seq2:#104281; --seq3:#184f95; --seq4:#1c5cab; --seq5:#2a78d6; --seq6:#5598e7; --seq7:#86b6ef;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font-family:Pretendard,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh;background:linear-gradient(to right,var(--sidebar) 232px,transparent 232px)}
+/* sidebar */
+.side{background:var(--sidebar);color:var(--sidebar-ink);padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 18px;color:#fff;font-weight:700;font-size:17px;letter-spacing:.02em}
+.brand small{display:block;font-weight:500;font-size:11px;color:#8a909a;letter-spacing:0}
+.side .sec{font-size:11px;color:#6b717b;padding:14px 10px 6px;letter-spacing:.06em}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;border:0;background:none;color:inherit;text-align:left;width:100%}
+.nav:hover{background:rgba(255,255,255,.05)}
+.nav.on{background:var(--sidebar-active);color:#fff}
+.nav svg{width:17px;height:17px;flex:none}
+.side .foot{margin-top:auto;font-size:12px;padding:10px;border-top:1px solid rgba(255,255,255,.08);color:#8a909a}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:6px}
+/* main */
+.main{min-width:0;padding:22px 28px 48px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.top h1{font-size:22px;margin:0;font-weight:700;letter-spacing:-.01em}
+.top .sub{color:var(--ink-2);font-size:13px;margin-top:2px}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--ring);background:var(--surface);border-radius:8px;padding:7px 12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg{display:inline-flex;border:1px solid var(--ring);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:7px 12px;cursor:pointer;color:var(--ink-2)}
+.seg button.on{background:var(--accent-wash);color:var(--accent);font-weight:600}
+select.sel{border:1px solid var(--ring);background:var(--surface);border-radius:8px;padding:7px 10px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.filters .lab{color:var(--muted);font-size:12px;margin-right:2px}
+/* grid & cards */
+.grid{display:grid;gap:14px;grid-template-columns:repeat(12,1fr)}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:14px;padding:16px 18px;min-width:0}
+.c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+.card h3{margin:0;font-size:14px;font-weight:600}
+.card .hint{color:var(--muted);font-size:12px;margin-top:2px}
+.card-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+.chart{position:relative;height:240px}
+.chart.sm{height:200px}.chart.lg{height:280px}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--ring);border-radius:14px;padding:14px 16px}
+.kpi .l{color:var(--ink-2);font-size:12.5px}
+.kpi .v{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:4px}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink-2);margin-left:2px}
+.kpi .d{font-size:12px;margin-top:2px;color:var(--muted)}
+.up{color:var(--up)} .down{color:var(--crit)}
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.legend i.ln{height:2px;width:14px;border-radius:2px;vertical-align:3px}
+/* donut layout */
+.donut-wrap{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center}
+.donut{position:relative;height:150px}
+.donut .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.donut .center b{font-size:24px;letter-spacing:-.02em}
+.donut .center span{font-size:11.5px;color:var(--muted)}
+.dl{display:flex;flex-direction:column;gap:9px;font-size:13px}
+.dl .row{display:grid;grid-template-columns:12px 1fr auto auto;gap:8px;align-items:center;white-space:nowrap}
+.dl .sw{width:10px;height:10px;border-radius:3px}
+.dl .n{font-weight:600;font-variant-numeric:tabular-nums}
+.dl .p{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;width:44px;text-align:right}
+/* pipeline */
+.pipe{display:grid;grid-template-columns:repeat(7,1fr);gap:0;align-items:stretch}
+.stage{position:relative;padding:12px 12px;border:1px solid var(--ring);border-radius:10px;background:var(--surface-2);margin-right:18px}
+.stage:last-child{margin-right:0}
+.stage:not(:last-child)::after{content:"";position:absolute;right:-16px;top:50%;width:12px;height:1px;background:var(--axis)}
+.stage:not(:last-child)::before{content:"";position:absolute;right:-17px;top:calc(50% - 3px);border:3px solid transparent;border-left:5px solid var(--axis)}
+.stage .t{font-size:12px;font-weight:600}
+.stage .s{font-size:11px;color:var(--muted);margin-bottom:6px}
+.stage .n{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.stage .r{font-size:11.5px;color:var(--ink-2)}
+.stage.sf{background:var(--accent-wash)}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.b-good{color:var(--up);background:rgba(12,163,12,.12)}
+.b-warn{color:#9a6a00;background:rgba(250,178,25,.18)}
+.b-crit{color:var(--crit);background:rgba(208,59,59,.12)}
+.b-run{color:var(--accent);background:var(--accent-wash)}
+:root[data-theme="dark"] .b-warn{color:var(--warn)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .b-warn{color:var(--warn)}}
+/* table */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-weight:500;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--grid);white-space:nowrap;font-size:12px}
+th.sort{cursor:pointer;user-select:none}
+th.sort:hover{color:var(--ink)}
+td{padding:9px 10px;border-bottom:1px solid var(--grid);white-space:nowrap;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--surface-2)}
+tr.click{cursor:pointer}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--ink-2)}
+.tbl-wrap{overflow-x:auto}
+.search{border:1px solid var(--ring);background:var(--surface);border-radius:8px;padding:7px 10px;width:220px}
+.pager{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:var(--muted);font-size:12px}
+.bar-mini{display:inline-block;height:6px;border-radius:3px;background:var(--s1);vertical-align:middle;margin-right:6px}
+/* heatmap */
+.heat{display:grid;grid-template-columns:28px repeat(14,1fr);gap:3px;font-size:11px;color:var(--muted)}
+.heat .cell{height:24px;border-radius:4px;cursor:default}
+.heat .cell:hover{outline:2px solid var(--ink);outline-offset:-1px}
+.heat .hl{display:flex;align-items:center}
+.heat .hx{text-align:center}
+.scale{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:10px}
+.scale span.b{width:18px;height:10px;border-radius:2px;display:inline-block}
+/* user */
+.profile{display:flex;gap:16px;align-items:center}
+.avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:#fff;background:var(--s7);flex:none}
+.profile h2{margin:0;font-size:20px}
+.profile .meta{color:var(--ink-2);font-size:13px;display:flex;gap:12px;flex-wrap:wrap;margin-top:3px}
+.hero{font-size:52px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.hero small{font-size:18px;color:var(--ink-2);font-weight:500;margin-left:4px}
+.target-wrap{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:16px;align-items:center}
+.target svg{width:100%;max-width:340px;display:block;margin:0 auto}
+.kv{display:flex;flex-direction:column;gap:10px;font-size:13px}
+.kv div{display:flex;justify-content:space-between;border-bottom:1px solid var(--grid);padding-bottom:7px}
+.kv span{color:var(--ink-2)}
+.kv b{font-variant-numeric:tabular-nums}
+.ai{background:var(--surface-2);border-radius:10px;padding:14px 16px;font-size:13.5px;line-height:1.7}
+.ai h4{margin:0 0 6px;font-size:13px}
+.ai ul{margin:6px 0 0;padding-left:18px}
+.ai .tag{font-size:11px;color:var(--muted);margin-top:10px}
+.report-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--grid);gap:10px}
+.report-row:last-child{border-bottom:0}
+.report-row .nm{font-weight:600;font-size:13px}
+.report-row .ds{font-size:12px;color:var(--muted)}
+.chips{display:flex;gap:6px}
+.chip{font-size:11.5px;border:1px solid var(--ring);border-radius:6px;padding:3px 8px;cursor:pointer;background:var(--surface)}
+.chip:hover{background:var(--surface-2)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.step{min-width:0;background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.step .k{font-size:11.5px;color:var(--muted)}
+.step .v{font-weight:700;font-size:16px;margin-top:2px}
+.toast{position:fixed;bottom:22px;right:22px;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:50}
+.toast.show{opacity:1;transform:none}
+.live{font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center}
+.live .dot{animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.hidden{display:none!important}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12px;padding:6px 9px;border-radius:7px;z-index:60;opacity:0;transition:opacity .1s;white-space:nowrap}
+@media (max-width:1280px){.kpis{grid-template-columns:repeat(3,1fr)}.c3{grid-column:span 6}.c4,.c5,.c7,.c8{grid-column:span 12}.c6{grid-column:span 12}.pipe{grid-template-columns:repeat(4,1fr);row-gap:10px}.stage::after,.stage::before{display:none}.stage{margin-right:10px}}
+@media (max-width:760px){.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;padding:12px}.side .sec,.side .foot{display:none}.brand{padding:0 8px 0 0}.nav{width:auto}.main{padding:16px}.kpis{grid-template-columns:repeat(2,1fr)}.c3{grid-column:span 12}.pipe{grid-template-columns:repeat(2,1fr)}.donut-wrap,.target-wrap{grid-template-columns:1fr}.search{width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="12" stroke="#3987e5" stroke-width="2"/><circle cx="14" cy="14" r="6" stroke="#3987e5" stroke-width="2"/><circle cx="14" cy="14" r="1.8" fill="#eb6834"/><path d="M14 0v6M14 22v6M0 14h6M22 14h6" stroke="#3987e5" stroke-width="2"/></svg>
+      <div>Trigger_Point<small>영점사격 훈련 분석 플랫폼</small></div>
+    </div>
+    <div class="sec">관리</div>
+    <button class="nav on" data-view="admin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>관리자 대시보드</button>
+    <button class="nav" data-view="pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h10M4 12h16M4 18h7"/><circle cx="17" cy="6" r="2"/><circle cx="14" cy="18" r="2"/></svg>리포트 파이프라인</button>
+    <div class="sec">훈련생</div>
+    <button class="nav" data-view="user"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>사용자 대시보드</button>
+    <button class="nav" id="themeBtn" style="margin-top:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>라이트 / 다크 전환</button>
+    <div class="foot" style="margin-top:0">Team Trigger_Point<br><span class="dot"></span>ap-northeast-2 · 정상 운영<br><span id="clock"></span></div>
+  </aside>
+
+  <main class="main">
+    <!-- ================= ADMIN ================= -->
+    <section id="v-admin">
+      <div class="top">
+        <div><h1>관리자 대시보드</h1><div class="sub">2026년 2기 영점사격 과정 · 훈련생 200명 · Unity 시뮬레이터 12대</div></div>
+        <div class="tools">
+          <span class="live"><span class="dot"></span>실시간 · <span id="lastSync" style="margin-left:4px"></span></span>
+                    <button class="btn primary" onclick="toast('CSV 내보내기가 시작되었습니다 (trigger_point_sessions.csv)')">⤓ 내보내기</button>
+        </div>
+      </div>
+      <div class="filters">
+        <span class="lab">기간</span>
+        <div class="seg" id="rangeSeg"><button data-r="7">최근 7일</button><button data-r="14">14일</button><button data-r="30" class="on">30일</button></div>
+        <span class="lab" style="margin-left:8px">소대</span>
+        <select class="sel" id="unitSel"><option value="all">전체 소대</option></select>
+      </div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="grid">
+        <div class="card c8">
+          <div class="card-h"><div><h3>일별 사격 세션</h3><div class="hint">Unity 클라이언트 업로드 기준 · 합격/미달 판정</div></div>
+            <div class="legend"><span><i style="background:var(--s1)"></i>합격 세션</span><span><i style="background:var(--s2)"></i>미달 세션</span></div></div>
+          <div class="chart"><canvas id="cDaily"></canvas></div>
+        </div>
+        <div class="card c4">
+          <div class="card-h"><div><h3>훈련생 영점 상태</h3><div class="hint">최근 세션 기준</div></div></div>
+          <div class="donut-wrap">
+            <div class="donut"><canvas id="cStatus"></canvas><div class="center"><b id="statusCenter">0</b><span>영점 완료</span></div></div>
+            <div class="dl" id="statusLegend"></div>
+          </div>
+        </div>
+
+        <div class="card c4">
+          <div class="card-h"><div><h3>탄착군 크기 분포</h3><div class="hint">세션 최종 3발 탄착군 직경 (cm) · 기준 5cm</div></div></div>
+          <div class="chart sm"><canvas id="cHist"></canvas></div>
+        </div>
+        <div class="card c4">
+          <div class="card-h"><div><h3>회차별 성장 곡선</h3><div class="hint">훈련 회차에 따른 평균 탄착군 직경</div></div>
+            <div class="legend"><span><i class="ln" style="background:var(--s1)"></i>평균</span><span><i class="ln" style="background:var(--s3)"></i>상위 25%</span></div></div>
+          <div class="chart sm"><canvas id="cGrowth"></canvas></div>
+        </div>
+        <div class="card c4">
+          <div class="card-h"><div><h3>주요 교정 포인트</h3><div class="hint">Bedrock 분석이 지목한 1순위 오류</div></div></div>
+          <div class="donut-wrap">
+            <div class="donut"><canvas id="cError"></canvas><div class="center"><b id="errCenter">0</b><span>분석 세션</span></div></div>
+            <div class="dl" id="errLegend"></div>
+          </div>
+        </div>
+
+        <div class="card c5">
+          <div class="card-h"><div><h3>소대별 합격률</h3><div class="hint">세션 합격률 · 마우스를 올리면 세션 수 표시</div></div></div>
+          <div class="chart sm"><canvas id="cUnit"></canvas></div>
+        </div>
+        <div class="card c7">
+          <div class="card-h"><div><h3>시뮬레이터 사용 시간대</h3><div class="hint">요일 × 시간 세션 수 · 사로 배정 참고</div></div></div>
+          <div class="heat" id="heat"></div>
+          <div class="scale" id="heatScale"></div>
+        </div>
+
+        <div class="card c12">
+          <div class="card-h">
+            <div><h3>훈련생 현황</h3><div class="hint">행을 클릭하면 해당 훈련생의 사용자 대시보드로 이동합니다</div></div>
+            <div class="tools">
+              <input class="search" id="search" placeholder="이름 · 군번 검색">
+              <select class="sel" id="statusSel"><option value="all">전체 상태</option><option>영점 완료</option><option>교정 중</option><option>재훈련 필요</option></select>
+            </div>
+          </div>
+          <div class="tbl-wrap"><table>
+            <thead><tr>
+              <th class="sort" data-k="id">군번</th><th class="sort" data-k="name">이름</th><th class="sort" data-k="unit">소대</th>
+              <th class="sort" data-k="n">세션</th><th class="sort" data-k="best">최고 탄착군</th><th class="sort" data-k="last">최근 탄착군</th>
+              <th class="sort" data-k="score">종합 점수</th><th>상태</th><th class="sort" data-k="lastDate">최근 사격</th><th>리포트</th>
+            </tr></thead>
+            <tbody id="tbody"></tbody>
+          </table></div>
+          <div class="pager"><span id="pinfo"></span><div class="tools"><button class="btn" id="prev">이전</button><button class="btn" id="next">다음</button></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PIPELINE ================= -->
+    <section id="v-pipeline" class="hidden">
+      <div class="top">
+        <div><h1>리포트 파이프라인</h1><div class="sub">Unity → S3 → EventBridge → Step Functions → Bedrock → PDF → SES · 최근 24시간</div></div>
+        <div class="tools"><span class="live"><span class="dot"></span>CloudWatch 연동</span><button class="btn" onclick="toast('실패 실행 3건을 재시도 대기열에 넣었습니다')">↻ 실패 건 재실행</button></div>
+      </div>
+      <div class="kpis" id="pkpis"></div>
+      <div class="grid">
+        <div class="card c12">
+          <div class="card-h"><div><h3>단계별 처리 현황</h3><div class="hint">최근 24시간 처리 건수 · 단계 성공률</div></div></div>
+          <div class="pipe" id="pipe"></div>
+        </div>
+        <div class="card c8">
+          <div class="card-h"><div><h3>리포트 생성 소요 시간</h3><div class="hint">_COMPLETE 마커 감지 → SES 발송까지 (초)</div></div>
+            <div class="legend"><span><i class="ln" style="background:var(--s1)"></i>p50</span><span><i class="ln" style="background:var(--s2)"></i>p95</span></div></div>
+          <div class="chart"><canvas id="cLatency"></canvas></div>
+        </div>
+        <div class="card c4">
+          <div class="card-h"><div><h3>단계별 평균 소요</h3><div class="hint">Step Functions 상태별 (초)</div></div></div>
+          <div class="chart"><canvas id="cStage"></canvas></div>
+        </div>
+        <div class="card c6">
+          <div class="card-h"><div><h3>Bedrock 토큰 사용량</h3><div class="hint">일별 입력 · 출력 토큰 (천 단위)</div></div>
+            <div class="legend"><span><i style="background:var(--s1)"></i>입력</span><span><i style="background:var(--s3)"></i>출력</span></div></div>
+          <div class="chart sm"><canvas id="cToken"></canvas></div>
+        </div>
+        <div class="card c6">
+          <div class="card-h"><div><h3>리포트 전달 채널</h3><div class="hint">생성 리포트의 열람 경로 (최근 30일)</div></div></div>
+          <div class="donut-wrap">
+            <div class="donut"><canvas id="cChannel"></canvas><div class="center"><b id="chCenter">0</b><span>열람률</span></div></div>
+            <div class="dl" id="chLegend"></div>
+          </div>
+        </div>
+        <div class="card c12">
+          <div class="card-h"><div><h3>최근 실행 내역</h3><div class="hint">Step Functions 실행 · 실패 건은 원인 표시</div></div></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>실행 ID</th><th>훈련생</th><th>세션 키</th><th>상태</th><th>실패 단계</th><th>소요</th><th>시작</th><th>산출물</th></tr></thead>
+            <tbody id="execBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= USER ================= -->
+    <section id="v-user" class="hidden">
+      <div class="top">
+        <div class="profile">
+          <div class="avatar" id="uAvatar"></div>
+          <div><h2 id="uName"></h2><div class="meta" id="uMeta"></div></div>
+        </div>
+        <div class="tools">
+          <span class="lab" style="color:var(--muted);font-size:12px">훈련생 보기</span>
+          <select class="sel" id="userSel"></select>
+          <button class="btn primary" id="pdfBtn">⤓ 최신 리포트 PDF</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card c4">
+          <div class="card-h"><div><h3>최근 탄착군</h3><div class="hint" id="uLastHint"></div></div><span id="uBadge"></span></div>
+          <div class="hero" id="uHero"></div>
+          <div class="hint" style="margin-top:6px" id="uHeroSub"></div>
+          <div class="steps" style="margin-top:16px" id="uSteps"></div>
+        </div>
+        <div class="card c8">
+          <div class="card-h"><div><h3>표적지 · 최근 세션</h3><div class="hint">25m 영점 표적 · 1칸 = 1cm · 조별 3발</div></div>
+            <div class="legend"><span><i style="background:var(--s1);border-radius:50%"></i>1조 (조정 전)</span><span><i style="background:var(--s2);border-radius:50%"></i>2조</span><span><i style="background:var(--s3);border-radius:50%"></i>3조 (최종)</span></div></div>
+          <div class="target-wrap">
+            <div class="target" id="target"></div>
+            <div class="kv" id="uKV"></div>
+          </div>
+        </div>
+
+        <div class="card c7">
+          <div class="card-h"><div><h3>회차별 탄착군 추이</h3><div class="hint">직경이 작을수록 정확 · 합격 기준 5cm</div></div>
+            <div class="legend"><span><i class="ln" style="background:var(--s1)"></i>내 탄착군</span><span><i class="ln" style="background:var(--muted)"></i>합격 기준</span></div></div>
+          <div class="chart"><canvas id="uTrend"></canvas></div>
+        </div>
+        <div class="card c5">
+          <div class="card-h"><div><h3>사격 역량 진단</h3><div class="hint">센서 기반 5개 지표 (0–100)</div></div>
+            <div class="legend"><span><i style="background:var(--s1)"></i>나</span><span><i style="background:var(--s2)"></i>과정 평균</span></div></div>
+          <div class="chart"><canvas id="uRadar"></canvas></div>
+        </div>
+
+        <div class="card c4">
+          <div class="card-h"><div><h3>과정 내 순위</h3><div class="hint">종합 점수 기준 · 200명 중</div></div></div>
+          <div class="hero" id="uRank"></div>
+          <div class="hint" style="margin-top:6px" id="uRankSub"></div>
+          <div class="chart sm" style="margin-top:12px;height:120px"><canvas id="uDist"></canvas></div>
+        </div>
+        <div class="card c8">
+          <div class="card-h"><div><h3>AI 코치 분석</h3><div class="hint">Amazon Bedrock이 세션 요약본을 분석해 생성한 리포트 발췌</div></div></div>
+          <div class="ai" id="uAI"></div>
+        </div>
+
+        <div class="card c12">
+          <div class="card-h"><div><h3>내 리포트</h3><div class="hint">세션 종료 후 자동 생성 · 링크는 7일간 유효 (presigned URL)</div></div></div>
+          <div id="uReports"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- seeded data ---------- */
+let seed = 20261029;
+const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+const rn = (m=0,s=1) => { let u=0,v=0; while(!u)u=rnd(); while(!v)v=rnd(); return m + s*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
+const pick = a => a[Math.floor(rnd()*a.length)];
+const clamp = (x,a,b) => Math.max(a,Math.min(b,x));
+const TODAY = new Date(2026,9,29,14,20);
+const DAY = 864e5;
+const fmtD = d => `${d.getMonth()+1}/${d.getDate()}`;
+const fmtDT = d => `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+
+const SUR = '김이박최정강조윤장임한오서신권황안송류홍전고문양손배백허유남심노하곽성차주우구민진나지엄채원천방공현함변염여추도소석선설마길연위표명기반왕금옥육인맹제모탁국어은편용예경봉사부황'.split('');
+const GIV = '민서준도윤예하지시우주원현건태은수영재훈성진동혁석규찬호승연유상경범율빈결한강산'.split('');
+const UNITS = ['1소대','2소대','3소대','4소대','5소대'];
+const ERRORS = ['격발 시 당김','호흡 불안정','조준선 정렬','사격 자세','안정적'];
+const METRICS = ['조준 안정성','호흡 통제','격발 제어','사격 자세','탄착 일관성'];
+
+const trainees = [];
+const sessions = [];
+for (let i=0;i<200;i++){
+  const unit = UNITS[i%5];
+  const skill = clamp(rn(0.5,0.2),0.05,0.95);
+  const learn = clamp(rn(0.06,0.025),0.01,0.12);
+  const t = { id:`26-7${String(1000+i*37%9000).padStart(4,'0')}${i%10}`, name: pick(SUR)+pick(GIV)+pick(GIV), unit, skill, sessions:[], weakness: Math.floor(rnd()*4) };
+  t.id = `26-${String(71000000 + (i+1)*48131 % 999999).slice(0,8)}`;
+  const n = 2 + Math.floor(rnd()*9);
+  let day = rnd()<.35 ? 0 : Math.floor(rnd()*5);
+  const days = [];
+  for (let k=0;k<n;k++){ days.push(day); day += 1 + Math.floor(rnd()*4); if(day>29) break; }
+  days.reverse();
+  days.forEach((d,k)=>{
+    const sk = clamp(skill + learn*k + rn(0,0.06), 0.02, 0.99);
+    const hourPool=[9,9,10,10,10,11,13,14,14,15,15,16,17,19,20];
+    const date = new Date(TODAY.getTime() - d*DAY); date.setHours(pick(hourPool), Math.floor(rnd()*60));
+    if (date > TODAY) date.setTime(TODAY.getTime() - Math.floor(rnd()*300)*60000);
+    const dow = date.getDay(); if (dow===0 && rnd()<.7) date.setTime(date.getTime()-DAY);
+    const diam = clamp(9.5 - 7*sk + rn(0,0.9), 1.6, 13);
+    // zeroing groups
+    let ox = clamp(rn(0,3.2),-7,7), oy = clamp(rn(0,3.2),-7,7);
+    const groups=[];
+    for (let g=0; g<3; g++){
+      const gd = diam * (g===2?1:1+rn(.15,.1));
+      const shots=[...Array(3)].map(()=>({x:ox+rn(0,gd/3.2), y:oy+rn(0,gd/3.2)}));
+      groups.push({cx:ox,cy:oy,shots,d:gd});
+      const fix = clamp(0.55 + sk*0.4 + rn(0,.08), .3, .98);
+      ox *= (1-fix); oy *= (1-fix);
+    }
+    const off = Math.hypot(groups[2].cx, groups[2].cy);
+    const pass = diam <= 5 && off <= 2.5;
+    const m = METRICS.map((_,j)=> clamp(Math.round(40 + 55*sk + rn(0,7) - (j===[2,1,0,3][t.weakness]?14:0)), 15, 99));
+    const minIdx = m.indexOf(Math.min(...m));
+    const err = pass && sk>.75 ? 4 : [2,1,0,3,0][minIdx];
+    const failRoll = rnd();
+    const rep = d===0 && date.getTime() > TODAY.getTime()-6*60000 ? 'run' : failRoll < .018 ? 'fail' : 'ok';
+    const s = { t, date, diam:+diam.toFixed(1), off:+off.toFixed(1), groups, pass, m, err, clicksH: Math.round(-groups[0].cx/0.7), clicksV: Math.round(-groups[0].cy/0.7),
+      dur: Math.round(14 + rn(0,4) + (1-sk)*8), rep, idx:k+1, key:`raw/${date.getFullYear()}/${String(date.getMonth()+1).padStart(2,'0')}/${String(date.getDate()).padStart(2,'0')}/${t.id}/s${String(k+1).padStart(2,'0')}` };
+    t.sessions.push(s); sessions.push(s);
+  });
+  trainees.push(t);
+}
+trainees.forEach(t=>{
+  const S=t.sessions, L=S[S.length-1];
+  t.n=S.length; t.last=L.diam; t.best=Math.min(...S.map(s=>s.diam)); t.lastDate=L.date;
+  t.score=Math.round(L.m.reduce((a,b)=>a+b,0)/5*0.6 + clamp(100-(L.diam-1.5)*9,0,100)*0.4);
+  const recentPass = S.slice(-2).filter(s=>s.pass).length;
+  t.status = recentPass===2 || (S.length===1 && L.pass) ? '영점 완료' : (L.diam>7 && S.length>=3 ? '재훈련 필요' : '교정 중');
+});
+const ranked=[...trainees].sort((a,b)=>b.score-a.score); ranked.forEach((t,i)=>t.rank=i+1);
+
+/* ---------- helpers ---------- */
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const charts = {};
+function mk(id,cfg){ if(charts[id]) charts[id].destroy(); charts[id]=new Chart(document.getElementById(id),cfg); return charts[id]; }
+function baseOpts(extra={}){
+  return Object.assign({responsive:true,maintainAspectRatio:false,animation:{duration:500},
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:tipOpts()}},extra);
+}
+function tipOpts(){ return {backgroundColor:css('--ink'),titleColor:css('--surface'),bodyColor:css('--surface'),padding:10,cornerRadius:8,boxWidth:10,boxHeight:2,usePointStyle:false,titleFont:{weight:'600'},bodyFont:{weight:'500'}}; }
+function axes(xo={},yo={}){
+  return {x:Object.assign({grid:{display:false},border:{color:css('--axis')},ticks:{color:css('--muted'),font:{size:11},maxRotation:0,autoSkipPadding:10}},xo),
+          y:Object.assign({grid:{color:css('--grid')},border:{display:false},ticks:{color:css('--muted'),font:{size:11},padding:6}},yo)};
+}
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2200); }
+function badge(status){ const c={ '영점 완료':'b-good','교정 중':'b-warn','재훈련 필요':'b-crit'}[status]; return `<span class="badge ${c}">${status}</span>`; }
+const tip=document.getElementById('tip');
+function showTip(e,txt){ tip.textContent=txt; tip.style.opacity=1; tip.style.left=(e.clientX+12)+'px'; tip.style.top=(e.clientY-30)+'px'; }
+function hideTip(){ tip.style.opacity=0; }
+function donutLegend(el, labels, vals, colors){
+  const tot=vals.reduce((a,b)=>a+b,0);
+  el.innerHTML='';
+  labels.forEach((l,i)=>{ const r=document.createElement('div'); r.className='row';
+    r.innerHTML=`<span class="sw" style="background:${colors[i]}"></span><span></span><span class="n">${vals[i].toLocaleString()}</span><span class="p">${(vals[i]/tot*100).toFixed(1)}%</span>`;
+    r.children[1].textContent=l; el.appendChild(r); });
+}
+function donut(id, labels, vals, colors){
+  return mk(id,{type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:colors,borderColor:css('--surface'),borderWidth:2,hoverOffset:4,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{label:c=>` ${c.label}: ${c.raw.toLocaleString()}`}})}}});
+}
+
+/* ---------- ADMIN ---------- */
+let range=30, unitF='all';
+UNITS.forEach(u=>{ const o=document.createElement('option'); o.value=u; o.textContent=u; document.getElementById('unitSel').appendChild(o); });
+document.getElementById('rangeSeg').onclick=e=>{ if(!e.target.dataset.r) return; range=+e.target.dataset.r; [...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b===e.target)); renderAdmin(); };
+document.getElementById('unitSel').onchange=e=>{ unitF=e.target.value; renderAdmin(); };
+
+function renderAdmin(){
+  const from = TODAY.getTime()-range*DAY, prevFrom = from-range*DAY;
+  const inUnit = s => unitF==='all' || s.t.unit===unitF;
+  const S = sessions.filter(s=>inUnit(s) && s.date.getTime()>from);
+  const P = sessions.filter(s=>inUnit(s) && s.date.getTime()>prevFrom && s.date.getTime()<=from);
+  const T = trainees.filter(t=>unitF==='all'||t.unit===unitF);
+  const avg = a => a.length? a.reduce((x,y)=>x+y,0)/a.length : 0;
+  const passR = a => a.length? a.filter(s=>s.pass).length/a.length*100 : 0;
+  const done = T.filter(t=>t.status==='영점 완료').length;
+  const delta = (cur,prev,unit,invert,dec=1) => { if(!prev) return `<span>이전 기간 데이터 없음</span>`; const d=cur-prev; const good = invert? d<0 : d>0; return `<span class="${good?'up':'down'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(dec)}${unit}</span> 이전 ${range}일 대비`; };
+  const repOk = S.filter(s=>s.rep==='ok').length, repAll=S.filter(s=>s.rep!=='run').length;
+  const k=[
+    ['등록 훈련생', T.length, '명', `활성 ${T.filter(t=>t.lastDate.getTime()>TODAY.getTime()-7*DAY).length}명 (최근 7일)`],
+    ['사격 세션', S.length.toLocaleString(), '회', delta(S.length,P.length,'회',false,0)],
+    ['세션 합격률', passR(S).toFixed(1), '%', delta(passR(S),passR(P),'%p',false)],
+    ['평균 탄착군', avg(S.map(s=>s.diam)).toFixed(2), 'cm', delta(avg(S.map(s=>s.diam)),avg(P.map(s=>s.diam)),'cm',true,2)],
+    ['영점 완료', done, `/ ${T.length}명`, `완료율 ${(done/T.length*100).toFixed(1)}%`],
+    ['리포트 발송 성공', (repAll?repOk/repAll*100:0).toFixed(1), '%', `생성 ${repOk}건 · 실패 ${repAll-repOk}건`],
+  ];
+  document.getElementById('kpis').innerHTML=k.map(([l,v,u,d])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="d">${d}</div></div>`).join('');
+
+  // daily
+  const labels=[], pass=[], fail=[];
+  for(let d=range-1; d>=0; d--){ const day=new Date(TODAY.getTime()-d*DAY); labels.push(fmtD(day));
+    const ss=S.filter(s=>s.date.toDateString()===day.toDateString()); pass.push(ss.filter(s=>s.pass).length); fail.push(ss.filter(s=>!s.pass).length); }
+  mk('cDaily',{type:'bar',data:{labels,datasets:[
+    {label:'합격',data:pass,backgroundColor:css('--s1'),borderRadius:{topLeft:0,topRight:0,bottomLeft:4,bottomRight:4},borderSkipped:false,borderColor:css('--surface'),borderWidth:{top:1}},
+    {label:'미달',data:fail,backgroundColor:css('--s2'),borderRadius:{topLeft:4,topRight:4},borderSkipped:false,borderColor:css('--surface'),borderWidth:{bottom:1}}]},
+    options:baseOpts({scales:Object.assign(axes(),{x:Object.assign(axes().x,{stacked:true}),y:Object.assign(axes().y,{stacked:true,beginAtZero:true})}),
+      datasets:{bar:{maxBarThickness:22,categoryPercentage:.75}},
+      plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{footer:it=>`합계 ${it.reduce((a,b)=>a+b.raw,0)}회`}})}})});
+
+  // status donut
+  const stL=['영점 완료','교정 중','재훈련 필요'], stV=stL.map(x=>T.filter(t=>t.status===x).length), stC=[css('--good'),css('--warn'),css('--crit')];
+  donut('cStatus',stL,stV,stC); donutLegend(document.getElementById('statusLegend'),stL,stV,stC);
+  document.getElementById('statusCenter').textContent=(stV[0]/T.length*100).toFixed(0)+'%';
+
+  // histogram
+  const bins=[]; for(let b=1;b<12;b++) bins.push(b);
+  const hv=bins.map(b=>S.filter(s=>s.diam>=b && s.diam<b+1).length);
+  mk('cHist',{type:'bar',data:{labels:bins.map(b=>`${b}–${b+1}`),datasets:[{label:'세션',data:hv,backgroundColor:bins.map(b=>b<5?css('--s1'):css('--seq2')),borderRadius:{topLeft:4,topRight:4},borderSkipped:false}]},
+    options:baseOpts({scales:axes({},{beginAtZero:true}),datasets:{bar:{categoryPercentage:.9,barPercentage:.92}},
+      plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{title:i=>`직경 ${i[0].label} cm`,label:c=>` ${c.raw}회 ${bins[c.dataIndex]<5?'(기준 이내)':''}`}})}})});
+
+  // growth
+  const gi=[1,2,3,4,5,6,7,8], allIdx=sessions.filter(inUnit);
+  const gAvg=gi.map(i=>{const a=allIdx.filter(s=>s.idx===i).map(s=>s.diam); return a.length>3? +avg(a).toFixed(2):null;});
+  const gTop=gi.map(i=>{const a=allIdx.filter(s=>s.idx===i).map(s=>s.diam).sort((x,y)=>x-y); return a.length>3? +a[Math.floor(a.length*.25)].toFixed(2):null;});
+  mk('cGrowth',{type:'line',data:{labels:gi.map(i=>i+'회차'),datasets:[
+    {label:'평균',data:gAvg,borderColor:css('--s1'),backgroundColor:css('--s1'),borderWidth:2,pointRadius:3,pointHoverRadius:5,tension:.3},
+    {label:'상위 25%',data:gTop,borderColor:css('--s3'),backgroundColor:css('--s3'),borderWidth:2,pointRadius:3,pointHoverRadius:5,tension:.3}]},
+    options:baseOpts({scales:axes({},{ticks:{color:css('--muted'),font:{size:11},callback:v=>v+'cm'}}),
+      plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}cm`}})}})});
+
+  // errors
+  const eV=ERRORS.map((_,i)=>S.filter(s=>s.err===i).length), eC=['--s1','--s2','--s3','--s4','--s7'].map(css);
+  donut('cError',ERRORS,eV,eC); donutLegend(document.getElementById('errLegend'),ERRORS,eV,eC);
+  document.getElementById('errCenter').textContent=S.length.toLocaleString();
+
+  // units
+  const uV=UNITS.map(u=>{const a=S.filter(s=>s.t.unit===u); return {r:+passR(a).toFixed(1),n:a.length};});
+  mk('cUnit',{type:'bar',data:{labels:UNITS,datasets:[{label:'합격률',data:uV.map(x=>x.r),backgroundColor:UNITS.map(u=>unitF==='all'||u===unitF?css('--s1'):css('--grid')),borderRadius:{topRight:4,bottomRight:4},borderSkipped:false,maxBarThickness:22}]},
+    options:baseOpts({indexAxis:'y',interaction:{mode:'nearest',intersect:true},
+      scales:{x:Object.assign(axes().y,{min:0,max:100,ticks:{color:css('--muted'),font:{size:11},callback:v=>v+'%'}}),y:Object.assign(axes().x,{grid:{display:false}})},
+      plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{label:c=>` 합격률 ${c.raw}% · 세션 ${uV[c.dataIndex].n}회`}})}}),
+    plugins:[{id:'lbl',afterDatasetsDraw(ch){const {ctx}=ch; ctx.save(); ctx.font='600 11.5px Pretendard,system-ui'; ctx.fillStyle=css('--ink-2'); ctx.textBaseline='middle';
+      ch.getDatasetMeta(0).data.forEach((b,i)=>ctx.fillText(`${uV[i].r}%`,b.x+6,b.y)); ctx.restore();}}]});
+
+  // heatmap
+  const days=['월','화','수','목','금','토','일'], hours=[...Array(14)].map((_,i)=>i+8);
+  const H=days.map((_,di)=>hours.map(h=>S.filter(s=>((s.date.getDay()+6)%7)===di && s.date.getHours()===h).length));
+  const mx=Math.max(1,...H.flat()); const seq=['--surface-2','--seq1','--seq2','--seq3','--seq4','--seq5','--seq6'].map(css);
+  const hEl=document.getElementById('heat'); hEl.innerHTML='<div></div>'+hours.map(h=>`<div class="hx">${h}</div>`).join('');
+  days.forEach((d,di)=>{ hEl.insertAdjacentHTML('beforeend',`<div class="hl">${d}</div>`);
+    hours.forEach((h,hi)=>{ const v=H[di][hi]; const c=document.createElement('div'); c.className='cell';
+      c.style.background = v===0? seq[0] : seq[Math.min(6,1+Math.floor(v/mx*5.999))];
+      c.onmousemove=e=>showTip(e,`${d}요일 ${h}:00 · ${v}회`); c.onmouseleave=hideTip; hEl.appendChild(c); }); });
+  document.getElementById('heatScale').innerHTML='적음 '+seq.map(c=>`<span class="b" style="background:${c}"></span>`).join('')+` 많음 (최대 ${mx}회)`;
+
+  renderTable();
+}
+
+/* table */
+let sortK='score', sortDir=-1, page=0; const PER=12;
+document.querySelectorAll('th.sort').forEach(th=>th.onclick=()=>{ const k=th.dataset.k; sortDir = sortK===k? -sortDir : (k==='name'||k==='id'||k==='unit'?1:-1); sortK=k; renderTable(); });
+document.getElementById('search').oninput=()=>{page=0;renderTable();};
+document.getElementById('statusSel').onchange=()=>{page=0;renderTable();};
+document.getElementById('prev').onclick=()=>{ if(page>0){page--;renderTable();} };
+document.getElementById('next').onclick=()=>{ page++; renderTable(); };
+function renderTable(){
+  const q=document.getElementById('search').value.trim(), st=document.getElementById('statusSel').value;
+  let rows=trainees.filter(t=>(unitF==='all'||t.unit===unitF)&&(st==='all'||t.status===st)&&(!q||t.name.includes(q)||t.id.includes(q)));
+  rows.sort((a,b)=>{const x=a[sortK],y=b[sortK]; return (x>y?1:x<y?-1:0)*sortDir;});
+  const pages=Math.max(1,Math.ceil(rows.length/PER)); page=Math.min(page,pages-1);
+  const tb=document.getElementById('tbody'); tb.innerHTML='';
+  rows.slice(page*PER,page*PER+PER).forEach(t=>{
+    const tr=document.createElement('tr'); tr.className='click';
+    const L=t.sessions[t.sessions.length-1];
+    const rep = L.rep==='ok'?'<span class="badge b-good">발송</span>':L.rep==='run'?'<span class="badge b-run">생성 중</span>':'<span class="badge b-crit">실패</span>';
+    tr.innerHTML=`<td class="mono">${t.id}</td><td><b></b></td><td>${t.unit}</td><td>${t.n}</td><td>${t.best.toFixed(1)}cm</td><td>${t.last.toFixed(1)}cm</td>
+      <td><span class="bar-mini" style="width:${t.score*0.6}px"></span>${t.score}</td><td>${badge(t.status)}</td><td>${fmtDT(t.lastDate)}</td><td>${rep}</td>`;
+    tr.querySelector('b').textContent=t.name;
+    tr.onclick=()=>{ selectUser(t); go('user'); };
+    tb.appendChild(tr);
+  });
+  document.getElementById('pinfo').textContent=`${rows.length}명 중 ${rows.length?page*PER+1:0}–${Math.min(rows.length,page*PER+PER)} · ${page+1}/${pages} 페이지`;
+  document.querySelectorAll('th.sort').forEach(th=>{ th.textContent=th.textContent.replace(/ [▲▼]$/,''); if(th.dataset.k===sortK) th.textContent+= sortDir>0?' ▲':' ▼'; });
+}
+
+/* ---------- PIPELINE ---------- */
+function renderPipeline(){
+  const last24 = sessions.filter(s=>s.date.getTime()>TODAY.getTime()-DAY);
+  const n = Math.max(last24.length, 46);
+  const fails = {agg:1,bed:2,pdf:1,ses:0};
+  const stages=[
+    ['Unity 클라이언트','요약본 업로드',n,'100%'],
+    ['S3 원본 버킷','_COMPLETE 마커',n,'100%'],
+    ['EventBridge','마커 필터링',n,'100%'],
+    ['집계 · 검증','원본 → 요약',n-fails.agg,((n-fails.agg)/n*100).toFixed(1)+'%',1],
+    ['Bedrock 호출','MD 리포트 생성',n-fails.agg-fails.bed,((n-fails.agg-fails.bed)/(n-fails.agg)*100).toFixed(1)+'%',1],
+    ['PDF 렌더','한글 폰트 내장',n-4,((n-4)/(n-3)*100).toFixed(1)+'%',1],
+    ['S3 → SES','presigned URL',n-4,'100%'],
+  ];
+  document.getElementById('pipe').innerHTML=stages.map(([t,s,c,r,sf])=>`<div class="stage ${sf?'sf':''}"><div class="t">${t}</div><div class="s">${s}</div><div class="n">${c}건</div><div class="r">성공률 ${r}</div></div>`).join('');
+  const k=[['24h 실행',n,'건','Step Functions'],['성공률',((n-4)/n*100).toFixed(1),'%','실패 4건 · 재시도 가능'],['p50 소요',38,'초','마커 → 메일 발송'],['p95 소요',71,'초','SLA 120초 이내'],['Bedrock 비용',(n*0.021).toFixed(2),'USD','세션당 $0.021'],['리포트 열람률',87.4,'%','발송 후 24시간 내']];
+  document.getElementById('pkpis').innerHTML=k.map(([l,v,u,d])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}<small>${u}</small></div><div class="d">${d}</div></div>`).join('');
+
+  seed=777;
+  const hrs=[...Array(24)].map((_,i)=>{const d=new Date(TODAY.getTime()-(23-i)*3600e3); return String(d.getHours()).padStart(2,'0')+':00';});
+  const p50=hrs.map((_,i)=>Math.round(34+rn(0,3)+(i===15?6:0))), p95=p50.map((v,i)=>Math.round(v+26+rn(0,6)+(i===15?38:0)));
+  mk('cLatency',{type:'line',data:{labels:hrs,datasets:[
+    {label:'p50',data:p50,borderColor:css('--s1'),backgroundColor:css('--s1'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.35},
+    {label:'p95',data:p95,borderColor:css('--s2'),backgroundColor:css('--s2'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.35}]},
+    options:baseOpts({scales:axes({ticks:{color:css('--muted'),font:{size:11},maxTicksLimit:8,maxRotation:0}},{beginAtZero:true,ticks:{color:css('--muted'),font:{size:11},callback:v=>v+'s'}}),
+      plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}초`}})}}),
+    plugins:[{id:'crosshair',afterDraw(ch){const a=ch.tooltip?._active; if(!a||!a.length) return; const x=a[0].element.x,{ctx,chartArea:c}=ch; ctx.save(); ctx.strokeStyle=css('--axis'); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,c.top); ctx.lineTo(x,c.bottom); ctx.stroke(); ctx.restore();}},
+      {id:'note',afterDatasetsDraw(ch){const m=ch.getDatasetMeta(1).data[15]; if(!m) return; const {ctx}=ch; ctx.save(); ctx.font='500 11px Pretendard,system-ui'; ctx.fillStyle=css('--ink-2'); ctx.textAlign='center'; ctx.fillText('Bedrock 스로틀링 재시도',m.x,m.y-10); ctx.restore();}}]});
+
+  const stL=['집계·검증','Bedrock 호출','PDF 렌더','S3 저장·SES'], stV=[3.2,24.8,6.1,1.9];
+  mk('cStage',{type:'bar',data:{labels:stL,datasets:[{data:stV,backgroundColor:css('--s1'),borderRadius:{topRight:4,bottomRight:4},borderSkipped:false,maxBarThickness:24}]},
+    options:baseOpts({indexAxis:'y',interaction:{mode:'nearest',intersect:true},scales:{x:Object.assign(axes().y,{beginAtZero:true,max:30,ticks:{color:css('--muted'),font:{size:11},callback:v=>v+'s'}}),y:axes().x},
+      plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{label:c=>` 평균 ${c.raw}초`}})}}),
+    plugins:[{id:'lbl',afterDatasetsDraw(ch){const {ctx}=ch; ctx.save(); ctx.font='600 11.5px Pretendard,system-ui'; ctx.fillStyle=css('--ink-2'); ctx.textBaseline='middle'; ch.getDatasetMeta(0).data.forEach((b,i)=>ctx.fillText(stV[i]+'s',b.x+6,b.y)); ctx.restore();}}]});
+
+  const dl=[...Array(14)].map((_,i)=>fmtD(new Date(TODAY.getTime()-(13-i)*DAY)));
+  const din=dl.map((_,i)=>{const dd=new Date(TODAY.getTime()-(13-i)*DAY).toDateString(); return Math.round(sessions.filter(s=>s.date.toDateString()===dd).length*6.4);});
+  mk('cToken',{type:'bar',data:{labels:dl,datasets:[
+    {label:'입력',data:din,backgroundColor:css('--s1'),borderRadius:4,borderSkipped:false,maxBarThickness:14},
+    {label:'출력',data:din.map(v=>Math.round(v*.32)),backgroundColor:css('--s3'),borderRadius:4,borderSkipped:false,maxBarThickness:14}]},
+    options:baseOpts({scales:axes({},{beginAtZero:true,ticks:{color:css('--muted'),font:{size:11},callback:v=>v+'k'}}),datasets:{bar:{categoryPercentage:.7,barPercentage:.9}},
+      plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw.toLocaleString()}k 토큰`}})}})});
+
+  const chL=['이메일 링크 (SES)','대시보드 PDF','대시보드 MD 뷰어','미열람'], chV=[412,198,96,102], chC=['--s1','--s2','--s3','--muted'].map(css);
+  donut('cChannel',chL,chV,chC); donutLegend(document.getElementById('chLegend'),chL,chV,chC);
+  document.getElementById('chCenter').textContent=((1-102/808)*100).toFixed(1)+'%';
+
+  const recent=[...sessions].sort((a,b)=>b.date-a.date).slice(0,12);
+  const failInfo=[['Bedrock 호출','ThrottlingException (재시도 3회 초과)'],['PDF 렌더','Lambda Timeout 30s'],['집계 · 검증','샷 데이터 누락 (shots=7/9)']];
+  let fi=0;
+  document.getElementById('execBody').innerHTML=recent.map((s,i)=>{
+    const st = s.rep==='run'?'run': (i===4||i===9)?'fail':'ok';
+    const f = st==='fail'? failInfo[(fi++)%3] : null;
+    const id='exec-'+(s.date.getTime()/1000|0).toString(16).slice(-6)+'-'+s.t.id.slice(-4);
+    const dur = st==='run'?'—': (30+Math.round(rnd()*40))+'s';
+    const bdg = st==='ok'?'<span class="badge b-good">SUCCEEDED</span>':st==='run'?'<span class="badge b-run">RUNNING</span>':'<span class="badge b-crit">FAILED</span>';
+    const out = st==='ok'?'<div class="chips"><span class="chip">json</span><span class="chip">md</span><span class="chip">pdf</span></div>':'—';
+    return `<tr><td class="mono">${id}</td><td>${s.t.name} <span class="mono">${s.t.unit}</span></td><td class="mono">${s.key}</td><td>${bdg}</td><td>${f?`${f[0]} · <span style="color:var(--muted)">${f[1]}</span>`:'—'}</td><td>${dur}</td><td>${fmtDT(s.date)}</td><td>${out}</td></tr>`;
+  }).join('');
+  document.querySelectorAll('#execBody .chip').forEach(c=>c.onclick=()=>toast(`presigned URL 생성됨 · report.${c.textContent} (유효 7일)`));
+}
+
+/* ---------- USER ---------- */
+let cur = ranked[38];
+const uSel=document.getElementById('userSel');
+[...trainees].sort((a,b)=>a.unit.localeCompare(b.unit)||a.name.localeCompare(b.name)).forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=`${t.name} · ${t.unit}`; uSel.appendChild(o); });
+uSel.onchange=()=>{ selectUser(trainees.find(t=>t.id===uSel.value)); };
+function selectUser(t){ cur=t; uSel.value=t.id; if(!document.getElementById('v-user').classList.contains('hidden')) renderUser(); }
+
+function targetSVG(s){
+  const R=160, sc=16; // 1cm = 16px, ±9cm
+  let g=`<svg viewBox="0 0 ${R*2} ${R*2}" role="img" aria-label="표적지">`;
+  g+=`<rect x="0" y="0" width="${R*2}" height="${R*2}" rx="12" fill="var(--target-bg)"/>`;
+  for(let i=-9;i<=9;i++){ const p=R+i*sc; g+=`<line x1="${p}" y1="8" x2="${p}" y2="${R*2-8}" stroke="var(--target-line)" stroke-width="${i===0?1.2:.6}"/><line x1="8" y1="${p}" x2="${R*2-8}" y2="${p}" stroke="var(--target-line)" stroke-width="${i===0?1.2:.6}"/>`; }
+  [8,6,4,2.5].forEach((r,i)=>g+=`<circle cx="${R}" cy="${R}" r="${r*sc}" fill="none" stroke="var(--target-ring)" stroke-width="${i===3?1.5:1}" ${i===3?'':'opacity=".55"'}/>`);
+  g+=`<circle cx="${R}" cy="${R}" r="${2.5*sc}" fill="var(--good)" fill-opacity=".07"/>`;
+  g+=`<text x="${R+2.5*sc+4}" y="${R-4}" font-size="10" fill="var(--muted)">합격원 ⌀5cm</text>`;
+  const cols=['--s1','--s2','--s3'];
+  s.groups.forEach((gr,gi)=>{
+    const cx=R+gr.cx*sc, cy=R-gr.cy*sc;
+    g+=`<circle cx="${cx}" cy="${cy}" r="${Math.max(gr.d/2*sc,10)}" fill="none" stroke="var(${cols[gi]})" stroke-width="1.2" opacity=".55"/>`;
+    gr.shots.forEach((p,pi)=>{ const x=clamp(R+p.x*sc,10,R*2-10), y=clamp(R-p.y*sc,10,R*2-10);
+      g+=`<g class="shot" data-t="${gi+1}조 ${pi+1}발 · 좌우 ${p.x>=0?'+':''}${p.x.toFixed(1)}cm / 상하 ${p.y>=0?'+':''}${p.y.toFixed(1)}cm"><circle cx="${x}" cy="${y}" r="12" fill="transparent"/><circle cx="${x}" cy="${y}" r="5" fill="var(${cols[gi]})" stroke="var(--target-bg)" stroke-width="2"/></g>`; });
+  });
+  return g+'</svg>';
+}
+
+function renderUser(){
+  const t=cur, S=t.sessions, L=S[S.length-1], P=S[S.length-2];
+  document.getElementById('uAvatar').textContent=t.name[0];
+  document.getElementById('uName').textContent=t.name+' 훈련생';
+  document.getElementById('uMeta').innerHTML=`<span class="mono">${t.id}</span><span>${t.unit}</span><span>K2 소총 · 25m 영점</span><span>세션 ${t.n}회</span>${badge(t.status)}`;
+  document.getElementById('uLastHint').textContent=`${fmtDT(L.date)} · ${L.idx}회차 · ${L.dur}분`;
+  document.getElementById('uBadge').innerHTML=L.pass?'<span class="badge b-good">합격</span>':'<span class="badge b-crit">미달</span>';
+  document.getElementById('uHero').innerHTML=`${L.diam.toFixed(1)}<small>cm</small>`;
+  const dd = P? L.diam-P.diam : 0;
+  document.getElementById('uHeroSub').innerHTML = P? `직전 회차 대비 <span class="${dd<=0?'up':'down'}">${dd<=0?'▼':'▲'} ${Math.abs(dd).toFixed(1)}cm</span> · 최고 기록 ${t.best.toFixed(1)}cm` : '첫 세션 기록';
+  document.getElementById('uSteps').innerHTML=[['중심 편차',L.off.toFixed(1)+'cm'],['좌우 조정',(L.clicksH>0?'R ':'L ')+Math.abs(L.clicksH)+'클릭'],['상하 조정',(L.clicksV>0?'U ':'D ')+Math.abs(L.clicksV)+'클릭']]
+    .map(([k,v])=>`<div class="step"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+
+  document.getElementById('target').innerHTML=targetSVG(L);
+  document.querySelectorAll('#target .shot').forEach(el=>{ el.onmousemove=e=>showTip(e,el.dataset.t); el.onmouseleave=hideTip; });
+  document.getElementById('uKV').innerHTML=L.groups.map((g,i)=>`<div><span>${i+1}조 탄착군</span><b>${g.d.toFixed(1)}cm</b></div>`).join('')
+    + `<div><span>최종 중심 편차</span><b>${L.off.toFixed(1)}cm</b></div><div><span>판정</span><b>${L.pass?'합격':'미달'}</b></div>`;
+
+  mk('uTrend',{type:'line',data:{labels:S.map(s=>`${s.idx}회 (${fmtD(s.date)})`),datasets:[
+    {label:'내 탄착군',data:S.map(s=>s.diam),borderColor:css('--s1'),backgroundColor:css('--s1'),borderWidth:2,pointRadius:4,pointHoverRadius:6,pointBorderColor:css('--surface'),pointBorderWidth:2,tension:.25,
+      fill:{target:'origin',above:css('--accent-wash')}},
+    {label:'합격 기준',data:S.map(()=>5),borderColor:css('--muted'),borderWidth:1.5,borderDash:[4,4],pointRadius:0,pointHoverRadius:0}]},
+    options:baseOpts({scales:axes({},{beginAtZero:true,suggestedMax:10,ticks:{color:css('--muted'),font:{size:11},callback:v=>v+'cm'}}),
+      plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}cm`}})}}),
+    plugins:[{id:'crosshair',afterDraw(ch){const a=ch.tooltip?._active; if(!a||!a.length) return; const x=a[0].element.x,{ctx,chartArea:c}=ch; ctx.save(); ctx.strokeStyle=css('--axis'); ctx.beginPath(); ctx.moveTo(x,c.top); ctx.lineTo(x,c.bottom); ctx.stroke(); ctx.restore();}}]});
+
+  const avgM=METRICS.map((_,j)=>Math.round(trainees.reduce((a,x)=>a+x.sessions[x.sessions.length-1].m[j],0)/trainees.length));
+  mk('uRadar',{type:'radar',data:{labels:METRICS,datasets:[
+    {label:'나',data:L.m,borderColor:css('--s1'),backgroundColor:'rgba(42,120,214,.16)',borderWidth:2,pointRadius:3,pointBackgroundColor:css('--s1')},
+    {label:'과정 평균',data:avgM,borderColor:css('--s2'),backgroundColor:'transparent',borderWidth:2,pointRadius:3,pointBackgroundColor:css('--s2')}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:tipOpts()},
+      scales:{r:{min:0,max:100,ticks:{stepSize:25,display:false},grid:{color:css('--grid')},angleLines:{color:css('--grid')},pointLabels:{color:css('--ink-2'),font:{size:12,family:'Pretendard'}}}}}});
+
+  const pct=Math.round((1-(t.rank-1)/200)*100);
+  document.getElementById('uRank').innerHTML=`${t.rank}<small>위</small>`;
+  document.getElementById('uRankSub').innerHTML=`상위 ${101-pct}% · 종합 점수 <b>${t.score}</b>점 · ${t.unit} 내 ${trainees.filter(x=>x.unit===t.unit&&x.score>t.score).length+1}위`;
+  const bins=[...Array(10)].map((_,i)=>40+i*6); const bv=bins.map(b=>trainees.filter(x=>x.score>=b&&x.score<b+6).length);
+  mk('uDist',{type:'bar',data:{labels:bins.map(b=>`${b}–${b+5}`),datasets:[{data:bv,backgroundColor:bins.map(b=>t.score>=b&&t.score<b+6?css('--s1'):css('--grid')),borderRadius:3,borderSkipped:false}]},
+    options:baseOpts({scales:{x:{display:false},y:{display:false}},datasets:{bar:{categoryPercentage:.95,barPercentage:.9}},
+      plugins:{legend:{display:false},tooltip:Object.assign(tipOpts(),{callbacks:{title:i=>`점수 ${i[0].label}`,label:c=>` ${c.raw}명${t.score>=bins[c.dataIndex]&&t.score<bins[c.dataIndex]+6?' (내 위치)':''}`}})}})});
+
+  const weakIdx=L.m.indexOf(Math.min(...L.m)), strongIdx=L.m.indexOf(Math.max(...L.m));
+  const tips={0:'조준 시 가늠쇠가 미세하게 흔들립니다. 팔꿈치를 지면에 단단히 고정하고 견착 위치를 일정하게 유지하세요.',
+    1:'격발 직전 호흡 정지 구간이 짧습니다. 자연 호흡 후 날숨 끝에서 2–3초 정지한 뒤 격발하는 리듬을 연습하세요.',
+    2:'격발 순간 총구가 우하단으로 당겨지는 패턴이 반복됩니다. 방아쇠는 손가락 첫마디로 곧게 뒤로 압착하세요.',
+    3:'사격 자세 각도가 세션마다 달라 탄착이 분산됩니다. 몸과 총의 각도를 15–20°로 맞추는 기준 자세를 정해 두세요.',
+    4:'탄착군의 중심이 조별로 이동합니다. 매 발 동일한 볼 견착(cheek weld) 위치를 확인하세요.'};
+  document.getElementById('uAI').innerHTML=`<h4>${L.idx}회차 요약</h4>
+    최종 3발 탄착군 <b>${L.diam.toFixed(1)}cm</b>, 중심 편차 <b>${L.off.toFixed(1)}cm</b>로 ${L.pass?'<b>합격 기준을 충족</b>했습니다.':'합격 기준(⌀5cm, 편차 2.5cm)에 <b>미달</b>했습니다.'}
+    가장 높은 지표는 <b>${METRICS[strongIdx]}(${L.m[strongIdx]})</b>, 보완이 필요한 지표는 <b>${METRICS[weakIdx]}(${L.m[weakIdx]})</b>입니다.
+    <ul><li>${tips[weakIdx]}</li><li>1조 대비 3조 중심이 ${Math.hypot(L.groups[0].cx,L.groups[0].cy).toFixed(1)}cm → ${L.off.toFixed(1)}cm로 수렴했습니다. 클릭 조정은 정확했습니다.</li>
+    <li>다음 세션 목표: 탄착군 <b>${Math.max(2,(L.diam-0.8)).toFixed(1)}cm</b> 이하, ${METRICS[weakIdx]} ${Math.min(95,L.m[weakIdx]+8)}점 이상.</li></ul>
+    <div class="tag">생성: Bedrock · 리포트 ${fmtDT(new Date(L.date.getTime()+41000))} · 원본 ${L.key}</div>`;
+
+  document.getElementById('uReports').innerHTML=[...S].reverse().map(s=>{
+    const st= s.rep==='ok'?'<span class="badge b-good">발송 완료</span>':s.rep==='run'?'<span class="badge b-run">생성 중</span>':'<span class="badge b-crit">재생성 대기</span>';
+    return `<div class="report-row"><div><div class="nm">${s.idx}회차 영점사격 리포트 ${s.pass?'· 합격':''}</div><div class="ds">${fmtDT(s.date)} · 탄착군 ${s.diam.toFixed(1)}cm · 편차 ${s.off.toFixed(1)}cm</div></div>
+      <div class="tools">${st}${s.rep==='ok'?'<div class="chips"><span class="chip">PDF</span><span class="chip">MD</span><span class="chip">JSON</span></div>':''}</div></div>`;}).join('');
+  document.querySelectorAll('#uReports .chip').forEach(c=>c.onclick=()=>toast(`${c.textContent} 다운로드 링크 생성됨 (presigned URL · 7일 유효)`));
+}
+document.getElementById('pdfBtn').onclick=()=>toast(`${cur.name} · ${cur.n}회차 리포트 PDF 다운로드를 시작합니다`);
+
+/* ---------- routing / theme ---------- */
+let view='admin';
+function go(v){ view=v; document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('on',n.dataset.view===v));
+  ['admin','pipeline','user'].forEach(x=>document.getElementById('v-'+x).classList.toggle('hidden',x!==v));
+  render(); window.scrollTo({top:0}); }
+function render(){ Chart.defaults.font.family='Pretendard, system-ui, sans-serif'; Chart.defaults.color=css('--muted');
+  if(view==='admin') renderAdmin(); else if(view==='pipeline') renderPipeline(); else renderUser(); }
+document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>go(n.dataset.view));
+document.getElementById('themeBtn').onclick=()=>{ const r=document.documentElement; const dark = r.dataset.theme? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme:dark)').matches;
+  r.dataset.theme = dark?'light':'dark'; render(); };
+function tick(){ const n=new Date(); document.getElementById('clock').textContent='동기화 '+n.toLocaleTimeString('ko-KR'); document.getElementById('lastSync').textContent=n.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+tick(); setInterval(tick,1000);
+uSel.value=cur.id;
+go('admin');
+</script>
+</body>
+</html>
