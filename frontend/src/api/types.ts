@@ -138,6 +138,12 @@ export interface Session {
   durationMin: number;
   report: ReportState;
   key: string;
+  /* 실제 서버(유니티 세션)에서만 오는 값 — 더미 데이터에는 없다 */
+  distanceMeters?: number;
+  shotsFired?: number;
+  hitCount?: number;
+  stageName?: string;
+  simulatorId?: string;
 }
 
 export interface MemberDetail extends Member {
@@ -145,4 +151,31 @@ export interface MemberDetail extends Member {
   sessions: Session[];
   metricLabels: string[];
   companyAvgMetrics: number[];
+}
+
+/* ---------- 사격 배치 · 명단 ---------- */
+export interface SimulatorSlot {
+  id: string;
+  member: { id: string; name: string; platoonName: string } | null;
+  assignedAt: string | null;
+}
+
+export interface RecentSession {
+  id: string;
+  date: string;
+  simulatorId: string;
+  memberId: string | null;
+  memberName: string | null;
+  shotsFired: number;
+  hitCount: number;
+  diameter: number;
+  /** false 면 실내 영점 표적·탄창 완주가 아니라 집계에서 빠진 세션 */
+  counted: boolean;
+  stageName: string;
+}
+
+export interface RosterResult {
+  added: number;
+  updated: number;
+  errors: { line: number; reason: string }[];
 }

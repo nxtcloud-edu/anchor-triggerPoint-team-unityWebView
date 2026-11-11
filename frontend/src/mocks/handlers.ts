@@ -1,11 +1,17 @@
-import type { LoginRequest, MemberSortKey, MemberStatus } from '@/api/types';
+import type {
+  LoginRequest,
+  MemberSortKey,
+  MemberStatus,
+  RecentSession,
+  SimulatorSlot,
+} from '@/api/types';
 import {
   buildDashboard,
   buildMemberDetail,
   platoonSummaries,
   toMember,
 } from '@/mocks/data/aggregate';
-import { COMPANY, PLATOONS, members } from '@/mocks/data/seed';
+import { COMPANY, PLATOONS, members, sessions } from '@/mocks/data/seed';
 import { http, HttpResponse } from 'msw';
 
 const MOCK_TOKEN = 'mock-admin-token';
@@ -16,6 +22,47 @@ const authed = (req: Request) => req.headers.get('Authorization') === `Bearer ${
 const unauthorized = () => HttpResponse.json({ message: '로그인이 필요합니다' }, { status: 401 });
 const notFound = (what: string) =>
   HttpResponse.json({ message: `${what}을(를) 찾을 수 없습니다` }, { status: 404 });
+const badRequest = (message: string) => HttpResponse.json({ message }, { status: 400 });
+
+/* 사격 배치 — 새로고침하면 처음 상태로 돌아가는 메모리 데이터 */
+const assignments = new Map<string, { memberId: string | null; assignedAt: string | null }>(
+  members.slice(0, 3).map((m, i) => [String(i + 1), { memberId: m.id, assignedAt: null }]),
+);
+const sessionOwner = new Map<string, string>();
+const memberById = new Map(members.map(m => [m.id, m]));
+
+const simulatorSlots = (): SimulatorSlot[] =>
+  Array.from({ length: COMPANY.simulatorCount }, (_, i) => {
+    const id = String(i + 1);
+    const a = assignments.get(id);
+    const m = a?.memberId ? memberById.get(a.memberId) : undefined;
+    return {
+      id,
+      member: m ? { id: m.id, name: m.name, platoonName: m.platoonName } : null,
+      assignedAt: a?.assignedAt ?? null,
+    };
+  });
+
+const recentSessions = (limit: number): RecentSession[] =>
+  [...sessions]
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .slice(0, limit)
+    .map((s, i) => {
+      const owner = memberById.get(sessionOwner.get(s.id) ?? s.memberId);
+      const shots = s.rounds.reduce((n, r) => n + r.shots.length, 0);
+      return {
+        id: s.id,
+        date: s.date.toISOString(),
+        simulatorId: String((i % COMPANY.simulatorCount) + 1),
+        memberId: owner?.id ?? null,
+        memberName: owner?.name ?? null,
+        shotsFired: shots,
+        hitCount: shots,
+        diameter: s.diameter,
+        counted: true,
+        stageName: 'Stage01',
+      };
+    });
 
 export const handlers = [
   http.post('/api/auth/login', async ({ request }) => {
@@ -93,5 +140,44 @@ export const handlers = [
   http.get('/api/me/:id', ({ params }) => {
     const data = buildMemberDetail(String(params.id));
     return data ? HttpResponse.json(data) : notFound('인원');
+  }),
+
+  // 명단 붙여넣기 — 더미 모드에서는 줄 수만 세고 인원은 바꾸지 않는다
+  http.post('/api/roster', async ({ request }) => {
+    if (!authed(request)) return unauthorized();
+    const { text } = (await request.json()) as { text?: string };
+    const lines = (text ?? '').split(/\r?\n/).filter(l => /\d/.test(l));
+    return HttpResponse.json({ added: lines.length, updated: 0, errors: [] });
+  }),
+
+  http.get('/api/simulators', ({ request }) =>
+    authed(request) ? HttpResponse.json(simulatorSlots()) : unauthorized(),
+  ),
+
+  http.put('/api/simulators/:id', async ({ request, params }) => {
+    if (!authed(request)) return unauthorized();
+    const id = String(params.id);
+    const { memberId } = (await request.json()) as { memberId: string | null };
+    if (Number(id) < 1 || Number(id) > COMPANY.simulatorCount) {
+      return badRequest(`시뮬레이터 ${id}번은 없습니다`);
+    }
+    if (memberId && !memberById.has(memberId))
+      return badRequest(`군번 ${memberId}을(를) 찾을 수 없습니다`);
+    assignments.set(id, { memberId, assignedAt: memberId ? new Date().toISOString() : null });
+    return HttpResponse.json({ ok: true });
+  }),
+
+  http.get('/api/sessions/recent', ({ request }) => {
+    if (!authed(request)) return unauthorized();
+    const limit = Number(new URL(request.url).searchParams.get('limit') ?? 20);
+    return HttpResponse.json(recentSessions(limit));
+  }),
+
+  http.post('/api/sessions/:id/assign', async ({ request, params }) => {
+    if (!authed(request)) return unauthorized();
+    const { memberId } = (await request.json()) as { memberId: string };
+    if (!memberById.has(memberId)) return badRequest(`군번 ${memberId}을(를) 찾을 수 없습니다`);
+    sessionOwner.set(String(params.id), memberId);
+    return HttpResponse.json({ ok: true });
   }),
 ];

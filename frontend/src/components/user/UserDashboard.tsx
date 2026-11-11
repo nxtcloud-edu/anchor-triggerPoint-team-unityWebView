@@ -5,7 +5,7 @@ import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Legend } from '@/components/ui/Legend';
-import { PASS_DIAMETER_CM, PASS_OFFSET_CM } from '@/constants/shooting';
+import { MIN_HITS, PASS_DIAMETER_CM, PASS_OFFSET_CM } from '@/constants/shooting';
 import { useToastStore } from '@/stores/toastStore';
 import { tooltipOptions, useChartColors } from '@/utils/chartTheme';
 import { fmtDT } from '@/utils/format';
@@ -44,8 +44,14 @@ const KeyValue = ({ k, v }: { k: string; v: string }) => (
   </div>
 );
 
+/** 명중 3발 미만 세션은 탄착군을 잴 수 없다 (hitCount 가 없는 더미 데이터는 잴 수 있는 세션) */
+const measurable = (s: Session) => s.hitCount === undefined || s.hitCount >= MIN_HITS;
+const cm = (s: Session, v: number) => (measurable(s) ? `${v.toFixed(1)}cm` : '-');
+
 const LastSessionCard = ({ m, L, P }: { m: MemberDetail; L: Session; P?: Session }) => {
-  const dd = P ? L.diameter - P.diameter : 0;
+  const ok = measurable(L);
+  const compare = P && measurable(P) ? P : undefined;
+  const dd = compare ? L.diameter - compare.diameter : 0;
   return (
     <Card
       className="xl:col-span-4"
@@ -55,12 +61,14 @@ const LastSessionCard = ({ m, L, P }: { m: MemberDetail; L: Session; P?: Session
     >
       <div className="flex items-baseline gap-1">
         <div className="text-[52px] leading-none font-bold tracking-tighter">
-          {L.diameter.toFixed(1)}
+          {ok ? L.diameter.toFixed(1) : '-'}
         </div>
-        <div className="text-lg font-medium text-text-secondary">cm</div>
+        {ok && <div className="text-lg font-medium text-text-secondary">cm</div>}
       </div>
       <div className="mt-1.5 flex flex-wrap gap-1 text-xs text-text-muted">
-        {P ? (
+        {!ok ? (
+          <div>명중 {L.hitCount}발 — 탄착군을 잴 수 없습니다</div>
+        ) : compare ? (
           <>
             <div>직전 세션 대비</div>
             <div className={dd <= 0 ? 'text-up' : 'text-crit'}>
@@ -69,13 +77,19 @@ const LastSessionCard = ({ m, L, P }: { m: MemberDetail; L: Session; P?: Session
             <div>· 최고 기록 {m.best.toFixed(1)}cm</div>
           </>
         ) : (
-          <div>첫 세션 기록</div>
+          <div>{P ? `최고 기록 ${m.best.toFixed(1)}cm` : '첫 세션 기록'}</div>
         )}
       </div>
       <div className="mt-4 grid grid-cols-3 gap-1.5">
-        <Stat k="중심 편차" v={`${L.offset.toFixed(1)}cm`} />
-        <Stat k="좌우 조정" v={`${L.clicksH > 0 ? 'R' : 'L'} ${Math.abs(L.clicksH)}클릭`} />
-        <Stat k="상하 조정" v={`${L.clicksV > 0 ? 'U' : 'D'} ${Math.abs(L.clicksV)}클릭`} />
+        <Stat k="중심 편차" v={cm(L, L.offset)} />
+        <Stat
+          k="좌우 조정"
+          v={ok ? `${L.clicksH > 0 ? 'R' : 'L'} ${Math.abs(L.clicksH)}클릭` : '-'}
+        />
+        <Stat
+          k="상하 조정"
+          v={ok ? `${L.clicksV > 0 ? 'U' : 'D'} ${Math.abs(L.clicksV)}클릭` : '-'}
+        />
       </div>
     </Card>
   );
@@ -83,15 +97,20 @@ const LastSessionCard = ({ m, L, P }: { m: MemberDetail; L: Session; P?: Session
 
 const TargetCard = ({ L }: { L: Session }) => {
   const last = L.rounds.length;
+  // 실제 서버 세션은 탄창 하나가 회차 하나다 (거리 환산 없이 쏜 거리의 cm 그대로)
+  const hint =
+    L.distanceMeters !== undefined
+      ? `${L.distanceMeters}m · 1칸 = 1cm · 명중 ${L.hitCount}/${L.shotsFired}발`
+      : '25m 영점 표적 · 1칸 = 1cm · 회차별 3발';
   return (
     <Card
       className="xl:col-span-8"
       title="표적지 · 최근 세션"
-      hint="25m 영점 표적 · 1칸 = 1cm · 회차별 3발"
+      hint={hint}
       right={
         <Legend
           items={L.rounds.map((r, i) => ({
-            label: `${r.round}회차${i === 0 ? ' (조정 전)' : i === last - 1 ? ' (최종)' : ''}`,
+            label: `${r.round}회차${last < 2 ? '' : i === 0 ? ' (조정 전)' : i === last - 1 ? ' (최종)' : ''}`,
             color: ROUND_COLORS[i],
             round: true,
           }))}
@@ -102,9 +121,9 @@ const TargetCard = ({ L }: { L: Session }) => {
         <TargetSheet session={L} />
         <div className="flex flex-col gap-2.5 text-[13px]">
           {L.rounds.map(r => (
-            <KeyValue key={r.round} k={`${r.round}회차 탄착군`} v={`${r.diameter.toFixed(1)}cm`} />
+            <KeyValue key={r.round} k={`${r.round}회차 탄착군`} v={cm(L, r.diameter)} />
           ))}
-          <KeyValue k="최종 중심 편차" v={`${L.offset.toFixed(1)}cm`} />
+          <KeyValue k={last < 2 ? '중심 편차' : '최종 중심 편차'} v={cm(L, L.offset)} />
           <KeyValue k="판정" v={L.pass ? '합격' : '미달'} />
         </div>
       </div>
@@ -174,29 +193,47 @@ const RadarCard = ({ m, L }: { m: MemberDetail; L: Session }) => {
   );
 };
 
+/** 평균 탄착점이 중심에서 벗어난 방향 — 0.1cm 미만인 축은 말하지 않는다 */
+const offsetText = (cx: number, cy: number) => {
+  const parts = [
+    Math.abs(cx) >= 0.05 ? `${cx > 0 ? '오른쪽' : '왼쪽'} ${Math.abs(cx).toFixed(1)}cm` : '',
+    Math.abs(cy) >= 0.05 ? `${cy > 0 ? '위' : '아래'} ${Math.abs(cy).toFixed(1)}cm` : '',
+  ].filter(Boolean);
+  return parts.length ? `중심에서 ${parts.join(', ')} 벗어났습니다` : '중심에 있습니다';
+};
+
 const CoachCard = ({ m, L }: { m: MemberDetail; L: Session }) => {
   const weak = L.metrics.indexOf(Math.min(...L.metrics));
   const strong = L.metrics.indexOf(Math.max(...L.metrics));
   const first = L.rounds[0];
   const lastRound = L.rounds[L.rounds.length - 1];
+  const ok = measurable(L);
   return (
     <Card
       className="xl:col-span-7"
       title="AI 코치 분석"
-      hint="Amazon Bedrock이 세션 요약본을 분석해 생성한 리포트 발췌"
+      hint="사격 지표와 탄착을 바탕으로 한 규칙 기반 분석"
     >
       <div className="flex flex-col gap-2 rounded-[10px] bg-bg-surface-2 px-4 py-3.5 text-[13.5px] leading-[1.7]">
         <div className="text-[13px] font-semibold">세션 #{L.index} 요약</div>
         <div>
-          최종 {lastRound.round}회차 탄착군{' '}
-          <div className="inline font-bold">{L.diameter.toFixed(1)}cm</div>, 중심 편차{' '}
-          <div className="inline font-bold">{L.offset.toFixed(1)}cm</div>로{' '}
-          {L.pass ? (
-            <div className="inline font-bold">합격 기준을 충족했습니다.</div>
+          {!ok ? (
+            <>
+              명중 <div className="inline font-bold">{L.hitCount}발</div>로 탄착군을 잴 수 없습니다.
+            </>
           ) : (
             <>
-              합격 기준(⌀{PASS_DIAMETER_CM}cm, 편차 {PASS_OFFSET_CM}cm)에{' '}
-              <div className="inline font-bold">미달</div>했습니다.
+              {L.rounds.length > 1 ? `최종 ${lastRound.round}회차 ` : ''}탄착군{' '}
+              <div className="inline font-bold">{L.diameter.toFixed(1)}cm</div>, 중심 편차{' '}
+              <div className="inline font-bold">{L.offset.toFixed(1)}cm</div>로{' '}
+              {L.pass ? (
+                <div className="inline font-bold">합격 기준을 충족했습니다.</div>
+              ) : (
+                <>
+                  합격 기준(⌀{PASS_DIAMETER_CM}cm, 편차 {PASS_OFFSET_CM}cm)에{' '}
+                  <div className="inline font-bold">미달</div>했습니다.
+                </>
+              )}
             </>
           )}{' '}
           가장 높은 지표는{' '}
@@ -211,19 +248,42 @@ const CoachCard = ({ m, L }: { m: MemberDetail; L: Session }) => {
         </div>
         <div className="flex flex-col gap-1 pl-1">
           <div>• {TIPS[weak]}</div>
+          {L.rounds.length > 1 ? (
+            <div>
+              • 1회차 대비 {lastRound.round}회차 중심이 {Math.hypot(first.cx, first.cy).toFixed(1)}
+              cm → {L.offset.toFixed(1)}cm로 수렴했습니다. 클릭 조정은 정확했습니다.
+            </div>
+          ) : (
+            ok && (
+              <div>
+                • 평균 탄착점이 {offsetText(first.cx, first.cy)}. 가늠자를 좌우{' '}
+                <div className="inline font-bold">
+                  {L.clicksH > 0 ? 'R' : 'L'} {Math.abs(L.clicksH)}클릭
+                </div>
+                , 상하{' '}
+                <div className="inline font-bold">
+                  {L.clicksV > 0 ? 'U' : 'D'} {Math.abs(L.clicksV)}클릭
+                </div>{' '}
+                조정하세요.
+              </div>
+            )
+          )}
           <div>
-            • 1회차 대비 {lastRound.round}회차 중심이 {Math.hypot(first.cx, first.cy).toFixed(1)}cm
-            → {L.offset.toFixed(1)}cm로 수렴했습니다. 클릭 조정은 정확했습니다.
-          </div>
-          <div>
-            • 다음 세션 목표: 탄착군{' '}
-            <div className="inline font-bold">{Math.max(2, L.diameter - 0.8).toFixed(1)}cm</div>{' '}
-            이하, {m.metricLabels[weak]} {Math.min(95, L.metrics[weak] + 8)}점 이상.
+            • 다음 세션 목표:{' '}
+            {ok ? (
+              <>
+                탄착군{' '}
+                <div className="inline font-bold">{Math.max(2, L.diameter - 0.8).toFixed(1)}cm</div>{' '}
+                이하
+              </>
+            ) : (
+              <>명중 {MIN_HITS}발 이상</>
+            )}
+            , {m.metricLabels[weak]} {Math.min(95, L.metrics[weak] + 8)}점 이상.
           </div>
         </div>
         <div className="mt-1 text-[11px] text-text-muted">
-          생성: Bedrock · 리포트 {fmtDT(new Date(new Date(L.date).getTime() + 41000))} · 원본{' '}
-          {L.key}
+          생성: 규칙 기반 · 세션 {fmtDT(L.date)} · 원본 {L.key}
         </div>
       </div>
     </Card>
@@ -249,7 +309,7 @@ const ReportsCard = ({ sessions }: { sessions: Session[] }) => {
                 세션 #{s.index} 영점사격 리포트{s.pass ? ' · 합격' : ''}
               </div>
               <div className="text-xs text-text-muted">
-                {fmtDT(s.date)} · 탄착군 {s.diameter.toFixed(1)}cm · 편차 {s.offset.toFixed(1)}cm
+                {fmtDT(s.date)} · 탄착군 {cm(s, s.diameter)} · 편차 {cm(s, s.offset)}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -284,7 +344,7 @@ interface UserDashboardProps {
 export const UserDashboard = ({ member: m, linkPlatoon = false }: UserDashboardProps) => {
   const toast = useToastStore(s => s.show);
   const S = m.sessions;
-  const L = S[S.length - 1];
+  const L = S[S.length - 1] as Session | undefined;
   const P = S.length > 1 ? S[S.length - 2] : undefined;
 
   return (
@@ -314,21 +374,32 @@ export const UserDashboard = ({ member: m, linkPlatoon = false }: UserDashboardP
           </div>
         }
         right={
-          <Button
-            variant="primary"
-            onClick={() => toast(`${m.name} · 세션 #${L.index} 리포트 PDF 다운로드를 시작합니다`)}
-          >
-            ⤓ 최신 리포트 PDF
-          </Button>
+          L && (
+            <Button
+              variant="primary"
+              onClick={() => toast(`${m.name} · 세션 #${L.index} 리포트 PDF 다운로드를 시작합니다`)}
+            >
+              ⤓ 최신 리포트 PDF
+            </Button>
+          )
         }
       />
-      <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-12">
-        <LastSessionCard m={m} L={L} P={P} />
-        <TargetCard L={L} />
-        <RadarCard m={m} L={L} />
-        <CoachCard m={m} L={L} />
-        <ReportsCard sessions={S} />
-      </div>
+      {L ? (
+        <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-12">
+          <LastSessionCard m={m} L={L} P={P} />
+          <TargetCard L={L} />
+          <RadarCard m={m} L={L} />
+          <CoachCard m={m} L={L} />
+          <ReportsCard sessions={S} />
+        </div>
+      ) : (
+        <Card>
+          <div className="py-10 text-center text-text-muted">
+            아직 사격 기록이 없습니다.
+            {linkPlatoon && ' 사격 배치에서 시뮬레이터에 배치한 뒤 사격하면 여기에 표시됩니다.'}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

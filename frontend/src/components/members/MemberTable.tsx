@@ -157,8 +157,12 @@ export const MemberTable = ({ title, hint, platoonId, platoons }: Props) => {
             <div className="px-2.5 py-[9px] font-semibold">{m.name}</div>
             <div className="px-2.5 py-[9px]">{m.platoonName}</div>
             <div className="tabular px-2.5 py-[9px]">{m.sessionCount}</div>
-            <div className="tabular px-2.5 py-[9px]">{m.best.toFixed(1)}cm</div>
-            <div className="tabular px-2.5 py-[9px]">{m.last.toFixed(1)}cm</div>
+            <div className="tabular px-2.5 py-[9px]">
+              {m.best > 0 ? `${m.best.toFixed(1)}cm` : '-'}
+            </div>
+            <div className="tabular px-2.5 py-[9px]">
+              {m.last > 0 ? `${m.last.toFixed(1)}cm` : '-'}
+            </div>
             <div className="tabular flex items-center gap-1.5 px-2.5 py-[9px]">
               <div className="h-1.5 rounded-[3px] bg-chart-1" style={{ width: m.score * 0.6 }} />
               {m.score}
@@ -166,7 +170,7 @@ export const MemberTable = ({ title, hint, platoonId, platoons }: Props) => {
             <div className="px-2.5 py-[9px]">
               <StatusBadge status={m.status} />
             </div>
-            <div className="tabular px-2.5 py-[9px]">{fmtDT(m.lastDate)}</div>
+            <div className="tabular px-2.5 py-[9px]">{m.lastDate ? fmtDT(m.lastDate) : '-'}</div>
           </button>
         ))}
         {data && !data.items.length && (

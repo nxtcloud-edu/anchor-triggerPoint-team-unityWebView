@@ -1,5 +1,6 @@
 import {
   BrandMark,
+  IconAssign,
   IconCompany,
   IconLogout,
   IconPlatoon,
@@ -14,6 +15,7 @@ const NAV = [
   { to: '/admin', label: '중대 대시보드', icon: <IconCompany />, end: true },
   { to: '/platoons', label: '소대 대시보드', icon: <IconPlatoon /> },
   { to: '/users', label: '사용자 대시보드', icon: <IconUser /> },
+  { to: '/assignments', label: '사격 배치', icon: <IconAssign /> },
 ];
 
 const navClass = ({ isActive }: { isActive: boolean }) =>

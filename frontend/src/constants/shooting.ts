@@ -2,6 +2,9 @@
 export const PASS_DIAMETER_CM = 5;
 export const PASS_OFFSET_CM = 2.5;
 
+/** 명중이 이보다 적으면 탄착군을 잴 수 없는 세션 (유니티 _minHitsForEvaluation 과 같음) */
+export const MIN_HITS = 3;
+
 /** 주요 교정 포인트 — 이 세 가지만 집계한다 */
 export const CORRECTIONS = ['조준선 정렬', '호흡 불안정', '사격 자세'] as const;
 

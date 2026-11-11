@@ -1,5 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import AdminPage from '@/pages/admin';
+import AssignmentsPage from '@/pages/assignments';
 import LoginPage from '@/pages/login';
 import MePage from '@/pages/me';
 import PlatoonDetailPage from '@/pages/platoonDetail';
@@ -26,6 +27,7 @@ export const AppRouter = () => (
         <Route path="/platoons/:platoonId" element={<PlatoonDetailPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/users/:userId" element={<UserDetailPage />} />
+        <Route path="/assignments" element={<AssignmentsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

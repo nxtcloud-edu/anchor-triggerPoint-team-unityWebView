@@ -1,5 +1,5 @@
 import type { Session } from '@/api/types';
-import { PASS_DIAMETER_CM } from '@/constants/shooting';
+import { MIN_HITS, PASS_DIAMETER_CM } from '@/constants/shooting';
 import { signed } from '@/utils/format';
 import { useState, type MouseEvent } from 'react';
 
@@ -82,15 +82,18 @@ export const TargetSheet = ({ session }: { session: Session }) => {
         </text>
         {session.rounds.map((rd, ri) => (
           <g key={rd.round}>
-            <circle
-              cx={R + rd.cx * SC}
-              cy={R - rd.cy * SC}
-              r={Math.max((rd.diameter / 2) * SC, 10)}
-              fill="none"
-              stroke={ROUND_COLORS[ri]}
-              strokeWidth="1.2"
-              opacity=".55"
-            />
+            {/* 명중 3발 미만이면 탄착군 원을 그리지 않는다 (잴 수 없는 세션) */}
+            {rd.shots.length >= MIN_HITS && (
+              <circle
+                cx={R + rd.cx * SC}
+                cy={R - rd.cy * SC}
+                r={Math.max((rd.diameter / 2) * SC, 10)}
+                fill="none"
+                stroke={ROUND_COLORS[ri]}
+                strokeWidth="1.2"
+                opacity=".55"
+              />
+            )}
             {rd.shots.map((s, si) => {
               const x = clamp(R + s.x * SC, 10, R * 2 - 10);
               const y = clamp(R - s.y * SC, 10, R * 2 - 10);
