@@ -67,22 +67,23 @@ pnpm dev                 # http://localhost:5173
 ### 환경 변수 (`frontend/.env`)
 
 ```env
-VITE_SERVER_URL=http://127.0.0.1:8080   # 백엔드 API 주소 (목 모드에서는 쓰지 않음)
+VITE_SERVER_URL=                        # 백엔드 API 주소. 비우면 같은 주소의 /api 로 요청 (개발 서버가 아래 주소로 넘김)
+VITE_PROXY_TARGET=http://localhost:80   # pnpm dev 가 /api 요청을 넘길 데이터 서버 (backend/)
 VITE_USE_MOCK=true                      # 목(더미 데이터) 모드. 기본값 true
 ```
 
-| `VITE_USE_MOCK`                    | 동작                                                              | 로그인                                                                  |
-| ---------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `true` (기본값, 값을 안 줘도 true) | `/api/*` 요청을 브라우저 안에서 더미 데이터로 응답 (`src/mocks/`) | 로그인 화면 아래 **개발자 로그인** 버튼으로 아이디·비밀번호 없이 들어감 |
-| `false`                            | `VITE_SERVER_URL/api/*` 실제 서버로 요청                          | 실제 서버의 아이디·비밀번호로 로그인. 개발자 로그인 버튼은 숨겨짐       |
+| `VITE_USE_MOCK`                    | 동작                                                                                                     | 로그인                                                                  |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `true` (기본값, 값을 안 줘도 true) | `/api/*` 요청을 브라우저 안에서 더미 데이터로 응답 (`src/mocks/`)                                        | 로그인 화면 아래 **개발자 로그인** 버튼으로 아이디·비밀번호 없이 들어감 |
+| `false`                            | `VITE_SERVER_URL/api/*` 실제 서버로 요청. 비워 두면 개발 서버가 `VITE_PROXY_TARGET`(`backend/`)으로 넘김 | 실제 서버의 아이디·비밀번호로 로그인. 개발자 로그인 버튼은 숨겨짐       |
 
 > **실제 배포할 때는 반드시 `VITE_USE_MOCK=false` 로 빌드합니다.** 지금처럼 백엔드 없이 시연할 때만 `true` 를 씁니다.
 
 더미 데이터는 시드가 고정되어 있어서 언제 열어도 같은 군번이면 같은 사람입니다 (날짜는 오늘 기준 최근 30일로 계산).
 
-### API 목록 (백엔드가 맞춰야 할 계약)
+### API 목록 (`backend/` 가 제공)
 
-타입은 `frontend/src/api/types.ts`, 호출 함수는 `frontend/src/api/command.ts` 에 있습니다.
+타입은 `frontend/src/api/types.ts`, 호출 함수는 `frontend/src/api/command.ts` 에 있습니다. 서버 구현은 `backend/`, 설계는 `docs/superpowers/specs/2026-11-11-unity-session-dashboard-design.md` 입니다.
 
 | 메서드 · 경로                                            | 설명                                                                                                         |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -94,8 +95,13 @@ VITE_USE_MOCK=true                      # 목(더미 데이터) 모드. 기본�
 | `GET /api/members?platoonId&q&status&sort&dir&page&size` | 인원 목록 (페이지)                                                                                           |
 | `GET /api/members/:id`                                   | 개인 상세 (세션 · 회차별 탄착 · 지표)                                                                        |
 | `GET /api/me/:id`                                        | 사용자 본인용 개인 상세. 응답은 위와 같음. 지금은 인증 없이 군번으로 조회 → **실서비스 전 사용자 인증 필요** |
+| `POST /api/session`                                      | 유니티 세션 수신 (`ShootingResultSender`). `INGEST_KEY` 를 설정하면 `X-Ingest-Key` 헤더가 필요                |
+| `POST /api/roster`                                       | 명단 붙여넣기 `{ text }` (한 줄에 `군번, 이름, 소대`) → `{ added, updated, errors }`                         |
+| `GET /api/simulators` · `PUT /api/simulators/:id`        | 시뮬레이터별 사수 배치 조회 · 변경 (`memberId` 에 군번 또는 `null`)                                          |
+| `GET /api/sessions/recent?limit=20`                      | 최근 받은 세션 (미배정 · 집계 제외 포함)                                                                     |
+| `POST /api/sessions/:id/assign`                          | 세션을 다른 사람으로 옮기기 `{ memberId }`                                                                   |
 
-인증은 `Authorization: Bearer <token>` 헤더를 씁니다 (`/api/me/:id` 제외).
+인증은 `Authorization: Bearer <token>` 헤더를 씁니다 (`/api/me/:id`, `/api/session` 제외).
 
 ---
 
@@ -120,7 +126,7 @@ using UnityEngine;
 public class DashboardWebView : MonoBehaviour
 {
     // 배포한 대시보드 주소 (S3 정적 웹사이트)
-    [SerializeField] string baseUrl = "http://anchor-edu-01-s3.s3-website.ap-northeast-2.amazonaws.com/web";
+    [SerializeField] string baseUrl = "http://anchor-edu-01-s3.s3-website-us-east-1.amazonaws.com/web";
     WebViewObject webView;
 
     void Start()
@@ -159,30 +165,35 @@ public class DashboardWebView : MonoBehaviour
 
 ---
 
-## 5. 배포 계획 (아직 작업하지 않음)
+## 5. 배포
 
-배포는 **Terraform** 으로 하고, Unity 쪽과 같이 **AWS S3 + EC2** 만 사용합니다. 아래는 계획이며 Terraform 코드는 아직 없습니다.
+배포는 **Terraform** 으로 하고, Unity 쪽과 같이 **AWS S3 + EC2** 만 사용합니다 (리전 `us-east-1`). 데이터 서버(`backend/`)와 S3 버킷 Terraform(`infra/`)은 준비됐고, 화면의 S3 정적 호스팅(5-3, 5-4)은 아직 계획 단계입니다. 실제로 돌리는 순서는 **5-6** 을 보세요.
 
 ### 5-1. 구성
 
-| 리소스                     | 용도                                                                                    |
-| -------------------------- | --------------------------------------------------------------------------------------- |
-| EC2 (t3.small, 이미 생성)  | 80: 서버(API), 9080: 개발용 (8000: 클라이언트 호스팅 포트는 S3 웹사이트를 쓰면 비워 둠) |
-| S3 버킷 `anchor-edu-01-s3` | 클라이언트 호스팅(정적 웹사이트), 사격 데이터, Unity에서 쓰는 이미지·사운드 등          |
+| 리소스                     | 용도                                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------- |
+| EC2 (t3.small, 이미 생성)  | 80: 데이터 서버(`backend/`), 8000: 화면 개발 서버, 9080: 개발용 (브라우저 VS Code)            |
+| S3 버킷 `anchor-edu-01-s3` | 사격 데이터(`raw/`, `db/`), 클라이언트 호스팅(정적 웹사이트, 예정), Unity 이미지·사운드(예정) |
 
-### 5-2. 버킷 폴더 구조 (안)
+### 5-2. 버킷 폴더 구조
 
 ```
 anchor-edu-01-s3/
-├── web/            # frontend/dist 빌드 결과
-├── raw/            # Unity가 올리는 사격 원본 데이터 (raw/YYYY/MM/DD/<군번>/sNN)
-├── reports/        # 생성된 리포트 (PDF · MD · JSON)
-└── unity-assets/   # Unity 이미지 · 사운드
+├── raw/            # 유니티 원본 세션 (raw/YYYY/MM/DD/<세션Id>.json) — 받은 날짜(한국 시간) 기준
+├── db/             # 서버 상태 state.json (명단 · 시뮬레이터 배치 · 세션 계산 결과)
+├── web/            # frontend/dist 빌드 결과 (예정)
+├── reports/        # 생성된 리포트 (PDF · MD · JSON, 예정)
+└── unity-assets/   # Unity 이미지 · 사운드 (예정)
 ```
+
+원본 키에 군번을 넣지 않는 이유: 세션을 다른 사람으로 옮겨도 S3 객체를 옮기지 않으려고. 사람과 세션의 연결은 `db/state.json` 에 있습니다.
 
 IAM 역할은 바꿀 수 없으므로 클라이언트는 **S3 정적 웹사이트 호스팅**으로 직접 공개합니다. 대신 버킷 정책으로 **`web/` 경로만** 공개 읽기를 허용하고, `raw/` · `reports/` 같은 사격 데이터는 공개하지 않습니다.
 
-### 5-3. S3 버킷 설정 (콘솔)
+### 5-3. S3 버킷 설정 — 정적 호스팅 단계 (예정)
+
+> 지금 `infra/main.tf` 는 **퍼블릭 액세스를 전부 차단**합니다 (사격 데이터 보호). 아래 설정은 화면을 S3로 호스팅하는 단계에서 Terraform 에 옮겨 넣습니다.
 
 1. **객체 소유권**: ACL 비활성화됨 (권장값 그대로)
 2. **이 버킷의 퍼블릭 액세스 차단 설정**: "모든 퍼블릭 액세스 차단" 체크를 풀고, 아래처럼 둡니다.
@@ -215,26 +226,85 @@ IAM 역할은 바꿀 수 없으므로 클라이언트는 **S3 정적 웹사이�
 
 버킷 정책 저장이 "퍼블릭 액세스 차단" 때문에 거부되면 계정 단위 차단이 켜져 있는 것이므로 계정 관리자에게 요청해야 합니다.
 
-### 5-4. 배포 흐름 (안)
+### 5-4. 화면 배포 흐름 (예정)
 
 1. `cd frontend && pnpm build:s3` (`/web/` 경로 기준으로 빌드)
 2. `aws s3 sync dist/ s3://anchor-edu-01-s3/web/ --delete` (또는 콘솔에서 `dist/` 안의 파일을 `web/` 에 업로드)
-3. 접속 주소: `http://anchor-edu-01-s3.s3-website.ap-northeast-2.amazonaws.com/web/admin`
+3. 접속 주소: `http://anchor-edu-01-s3.s3-website-us-east-1.amazonaws.com/web/admin`
 
 주의할 점:
 
 - 지금(시연)은 더미 데이터를 쓰므로 `VITE_USE_MOCK=true` 그대로 빌드하면 S3 웹사이트에서도 바로 동작합니다.
-- **실제 배포 때는 `VITE_USE_MOCK=false`** 로 빌드하고 EC2의 API 서버(80 포트)를 `VITE_SERVER_URL` 로 연결합니다. S3 웹사이트 주소는 HTTP만 지원합니다.
-- 페이지(S3)와 API(EC2)의 주소가 다르므로 API 서버에 CORS 허용(S3 웹사이트 주소)이 필요합니다.
-- Unity나 EC2가 `raw/` 에 사격 데이터를 **쓰려면** 별도 자격 증명이 필요합니다. IAM 역할을 쓸 수 없으면 관리자에게 권한을 요청하거나, 그때까지 데이터는 EC2에 저장합니다.
+- **실제 배포 때는 `VITE_USE_MOCK=false`** 로 빌드하고 EC2의 데이터 서버(80 포트)를 `VITE_SERVER_URL` 로 연결합니다. S3 웹사이트 주소는 HTTP만 지원합니다.
+- 페이지(S3)와 API(EC2)의 주소가 다르므로 `backend/.env` 의 `CORS_ORIGINS` 에 S3 웹사이트 주소를 넣습니다.
+- EC2 를 켤 때마다 퍼블릭 IP 가 바뀌므로, 이 단계에서는 탄력적 IP 가 필요합니다.
 
-### 5-5. Terraform으로 만들 것 (예정)
+### 5-5. Terraform
 
-- S3 버킷 · 퍼블릭 액세스 차단(위 표대로) · `web/*` 공개 읽기 버킷 정책 · 정적 웹사이트 호스팅
-- IAM 역할은 권한이 없어 만들지 않습니다
-- 보안 그룹 (80, 8000, 9080). 9080은 허용 IP를 좁혀 둡니다
-- 이미 만든 EC2는 `terraform import` 로 가져오기
-- 이 저장소에는 접속 정보·비밀번호·액세스 키를 올리지 않습니다 (`*.tfvars` 는 `.gitignore`)
+- ✅ `infra/main.tf`: S3 버킷 · 퍼블릭 액세스 전부 차단 · 버전 관리 · 기본 암호화
+- 예정: `web/*` 공개 읽기 정책과 정적 웹사이트 호스팅 (5-3), 보안 그룹 (80, 8000, 9080 — 9080은 허용 IP를 좁혀 둠), 이미 만든 EC2 `terraform import`
+- IAM 역할은 권한이 없어 만들지 않습니다. EC2 에는 `SafeRole-anchor-edu-01` 이 이미 붙어 있어 키 없이 S3 에 접근합니다
+- 이 저장소에는 접속 정보·비밀번호·액세스 키를 올리지 않습니다 (`.env`, `*.tfvars`, `*.tfstate` 는 `.gitignore`)
+
+### 5-6. 실제 서버 실행 (EC2)
+
+9080 의 브라우저 VS Code 터미널에서 실행합니다. 저장소는 `~/anchor-triggerPoint-team-unityWebView` 에 있다고 가정합니다.
+
+**1) 권한 확인**
+
+```bash
+aws sts get-caller-identity   # assumed-role/SafeRole-anchor-edu-01 이 보이면 OK
+```
+
+**2) S3 버킷 만들기 (처음 한 번)**
+
+```bash
+sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+sudo dnf -y install terraform
+cd infra && terraform init && terraform apply
+```
+
+- 권한 오류로 버킷을 못 만들면 콘솔에서 `anchor-edu-01-s3` 를 만들고 `terraform import aws_s3_bucket.data anchor-edu-01-s3` 후 다시 `terraform apply`
+- 목록·쓰기 권한 확인: `aws s3 ls s3://anchor-edu-01-s3/` 와 `echo ok | aws s3 cp - s3://anchor-edu-01-s3/db/check.txt && aws s3 rm s3://anchor-edu-01-s3/db/check.txt`. 목록 권한이 없으면 첫 실행 때 `db/state.json` 이 없다는 것을 알 수 없어 서버가 시작되지 않습니다
+- Terraform 상태 파일(`infra/terraform.tfstate`)은 EC2 에만 있습니다. 지우지 마세요
+
+**3) 데이터 서버 (80 포트)**
+
+```bash
+cd ~/anchor-triggerPoint-team-unityWebView/backend
+pnpm install
+cp .env.example .env   # ADMIN_PASSWORD 와 AUTH_SECRET 을 채운다 (AUTH_SECRET 은 openssl rand -hex 32)
+sudo $(which node) --import tsx src/server.ts
+```
+
+- 80 포트라 `sudo` 가 필요합니다. node 가 ec2-user 계정에 설치돼 있어서 `sudo node` 대신 `sudo $(which node)` 로 경로를 넘깁니다
+- `Trigger_Point 서버 :80 · 저장소 s3://anchor-edu-01-s3` 가 나오면 성공. 이 터미널은 켜 둡니다
+
+**4) 화면 (8000 포트) — 새 터미널**
+
+```bash
+cd ~/anchor-triggerPoint-team-unityWebView/frontend
+cp .env.example .env   # VITE_USE_MOCK=false 로 바꾼다 (VITE_SERVER_URL 은 비워 둔다)
+pnpm dev --host 0.0.0.0 --port 8000
+```
+
+`http://<EC2 퍼블릭 IP>:8000` → 관리자 로그인 → **사용자 대시보드 › 명단 붙여넣기** → **사격 배치**에서 시뮬레이터에 사수 지정 → 유니티에서 사격하면 최근 세션에 뜨고 개인 대시보드 표적지에 찍힙니다.
+
+**5) 유니티 변경**
+
+- `ShootingSessionRecord` 에 `public string SimulatorId;` 를 추가하고, `ShootingResultSender` 가 보내기 전에 값을 채웁니다 (기본 `"1"`, 없으면 서버가 1번으로 봄)
+- `ShootingResultSender.DEFAULT_URL` 을 `http://<EC2 퍼블릭 IP>/api/session` 으로 (80 포트라 번호 생략). EC2 를 켤 때마다 IP 가 바뀝니다
+
+**집계 규칙 (요약)**
+
+- 유니티 탄창 하나 = 화면의 세션 하나 = 1회차. 쏜 거리의 cm 그대로 (25m 환산 없음), 합격 기준은 ⌀5cm · 편차 2.5cm
+- 실내 영점 표적(`IndoorTargetScore`)에서 탄창을 다 쏜 세션만 집계. 실외·중간 정지 세션은 원본만 저장하고 사격 배치 화면에 "집계 제외"로 표시
+- 명중 3발 미만은 실패로 세고 탄착군은 `-`
+- 레이더 5개 지표 기준값은 `backend/src/domain/metrics.ts` 의 `METRIC_THRESHOLDS`. 바꾼 뒤에는 서버를 끄고 `pnpm recompute`
+- `pnpm recompute` 는 원본(`raw/`)은 있는데 대시보드에 빠진 세션(상태 저장 실패 등)도 미배정으로 되살립니다 → 사격 배치 화면에서 사람 지정
+- 관리자 로그인은 같은 주소에서 5번 틀리면 5분 동안 잠깁니다
+- `/api/session` 은 인증이 없습니다. 군번만 알면 `/api/me/:id` 에서 세션 Id 를 볼 수 있으므로, 실제 훈련에 쓰기 전에는 `INGEST_KEY` 를 켜고 유니티가 `X-Ingest-Key` 헤더를 보내게 하세요
 
 > EC2는 사용하지 않을 때 반드시 **중지**하세요.
 
@@ -246,6 +316,18 @@ IAM 역할은 바꿀 수 없으므로 클라이언트는 **S3 정적 웹사이�
 .
 ├── README.md
 ├── trigger_point_dashboard.html     # 초기 단일 HTML 시안
+├── docs/superpowers/                # 설계(specs) · 구현 계획(plans)
+├── infra/main.tf                    # S3 버킷 Terraform
+├── backend/                         # 데이터 서버 (Node + TypeScript + Hono)
+│   ├── .env.example
+│   ├── src/
+│   │   ├── server.ts · bootstrap.ts # 진입점 · .env → 설정 · 저장소 · 상태
+│   │   ├── app.ts · auth.ts         # HTTP 라우트 · 관리자 토큰
+│   │   ├── repo.ts                  # 상태 변경과 저장 (수신 · 명단 · 배치 · 옮기기)
+│   │   ├── domain/                  # 유니티 형식 · 변환 · 지표 · 명단 파싱 · 집계
+│   │   ├── storage/                 # S3 / 로컬 폴더 저장소
+│   │   └── scripts/recompute.ts     # 원본으로 계산 결과 다시 만들기
+│   └── test/                        # vitest (실제 유니티 세션 고정 데이터 포함)
 └── frontend/
     ├── CLAUDE.md                    # 프론트엔드 작업 규칙 (AI 에이전트용)
     ├── .env.example
@@ -256,7 +338,7 @@ IAM 역할은 바꿀 수 없으므로 클라이언트는 **S3 정적 웹사이�
         ├── constants/               # 합격 기준 · 교정 포인트 · 기간
         ├── hooks/                   # useAsync · useNow
         ├── mocks/                   # 더미 데이터 핸들러 · axios 어댑터 · 시드 데이터 · 집계
-        ├── pages/                   # login · admin · platoons · platoonDetail · users · userDetail · me
+        ├── pages/                   # login · admin · platoons · platoonDetail · users · userDetail · me · assignments
         ├── routes/                  # routes.tsx · privateRoute.tsx
         ├── stores/                  # authStore · themeStore · toastStore
         ├── styles/                  # light-theme · dark-theme · theme-utilities
