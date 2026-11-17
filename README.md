@@ -296,6 +296,23 @@ pnpm dev --host 0.0.0.0 --port 8000
 - `ShootingSessionRecord` 에 `public string SimulatorId;` 를 추가하고, `ShootingResultSender` 가 보내기 전에 값을 채웁니다 (기본 `"1"`, 없으면 서버가 1번으로 봄)
 - `ShootingResultSender.DEFAULT_URL` 을 `http://<EC2 퍼블릭 IP>/api/session` 으로 (80 포트라 번호 생략). EC2 를 켤 때마다 IP 가 바뀝니다
 
+**6) 발표용 더미 데이터 (선택)**
+
+200명(10개 소대 × 20명)과 세션 약 1,000개를 실제 서버에 넣습니다. 실제 유니티 세션과 같은 모양으로 만들어 같은 규칙으로 계산되고, 화면에서는 실제 기록과 구분되지 않습니다. 원본(`raw/`)은 쓰지 않고 `db/state.json` 에만 들어갑니다.
+
+```bash
+# 터미널 A 에서 80번 서버를 Ctrl + C 로 먼저 끈다 (켜 둔 서버가 상태를 덮어쓰지 않도록)
+cd ~/anchor-triggerPoint-team-unityWebView/backend
+sudo $(which node) --import tsx src/scripts/seed.ts           # 더미 넣기 — 이전 더미는 지우고 오늘 기준 지난 30일로 새로 만든다
+sudo $(which node) --import tsx src/scripts/seed.ts --clear   # 더미만 지우기 — 실제 명단·세션은 남는다
+sudo $(which node) --import tsx src/server.ts                 # 서버 다시 켜기
+```
+
+- 발표 당일에 한 번 더 넣으면 날짜가 그날 기준으로 맞춰져 "최근 30일" 그래프가 꽉 찹니다
+- 실제 인원은 지금처럼 명단 붙여넣기 → 사격 배치 → 사격으로 더하면 더미 사이에 섞여 보입니다
+- 더미를 지울 때, 실제 세션이 더미 사람에게 옮겨져 있었으면 미배정으로 돌아가고 더미 사람에게 걸린 배치는 해제됩니다
+- 머리말의 "Unity 시뮬레이터 N대" 는 `backend/.env` 의 `SIMULATOR_COUNT` 로 바꿉니다
+
 **집계 규칙 (요약)**
 
 - 유니티 탄창 하나 = 화면의 세션 하나 = 1회차. 쏜 거리의 cm 그대로 (25m 환산 없음), 합격 기준은 ⌀5cm · 편차 2.5cm
@@ -324,9 +341,9 @@ pnpm dev --host 0.0.0.0 --port 8000
 │   │   ├── server.ts · bootstrap.ts # 진입점 · .env → 설정 · 저장소 · 상태
 │   │   ├── app.ts · auth.ts         # HTTP 라우트 · 관리자 토큰
 │   │   ├── repo.ts                  # 상태 변경과 저장 (수신 · 명단 · 배치 · 옮기기)
-│   │   ├── domain/                  # 유니티 형식 · 변환 · 지표 · 명단 파싱 · 집계
+│   │   ├── domain/                  # 유니티 형식 · 변환 · 지표 · 명단 파싱 · 집계 · 발표용 더미 생성
 │   │   ├── storage/                 # S3 / 로컬 폴더 저장소
-│   │   └── scripts/recompute.ts     # 원본으로 계산 결과 다시 만들기
+│   │   └── scripts/                 # recompute (원본으로 다시 계산) · seed (발표용 더미 넣기·지우기)
 │   └── test/                        # vitest (실제 유니티 세션 고정 데이터 포함)
 └── frontend/
     ├── CLAUDE.md                    # 프론트엔드 작업 규칙 (AI 에이전트용)
