@@ -1,6 +1,7 @@
 import type { Config } from './config';
 import { summarize } from './domain/convert';
-import { emptyState, type State, type StoredSession } from './domain/model';
+import type { DummySession } from './domain/dummy';
+import { emptyState, type RosterMember, type State, type StoredSession } from './domain/model';
 import { parseRoster, type RosterError } from './domain/roster';
 import type { UnitySession } from './domain/unity';
 import type { Storage } from './storage/storage';
@@ -27,6 +28,24 @@ const rawKeyOf = (id: string, at: Date) => {
   const mm = String(at.getMonth() + 1).padStart(2, '0');
   const dd = String(at.getDate()).padStart(2, '0');
   return `raw/${yyyy}/${mm}/${dd}/${id}.json`;
+};
+
+/**
+ * 더미 명단·세션을 지운다. 실제 세션이 더미 사람에게 옮겨져 있었으면 미배정으로,
+ * 더미 사람에게 걸린 시뮬레이터 배치는 해제로 돌린다.
+ */
+const removeDummy = (draft: State) => {
+  const dummyIds = new Set(draft.members.filter(m => m.dummy).map(m => m.id));
+  const before = draft.sessions.length;
+
+  draft.members = draft.members.filter(m => !m.dummy);
+  draft.sessions = draft.sessions.filter(s => !s.dummy);
+  for (const s of draft.sessions) if (s.memberId && dummyIds.has(s.memberId)) s.memberId = null;
+  for (const [id, a] of Object.entries(draft.simulators)) {
+    if (a.memberId && dummyIds.has(a.memberId)) draft.simulators[id] = { memberId: null, assignedAt: null };
+  }
+
+  return { members: dummyIds.size, sessions: before - draft.sessions.length };
 };
 
 /**
@@ -152,6 +171,7 @@ export class Repo {
     return this.change(async draft => {
       let recomputed = 0;
       for (const [i, session] of draft.sessions.entries()) {
+        if (session.dummy) continue;
         const raw = (await this.storage.getRaw(session.rawKey)) as StoredRaw;
         const { memberId, simulatorId, receivedAt, rawKey } = session;
         draft.sessions[i] = { ...summarize(raw, this.config), memberId, simulatorId, receivedAt, rawKey };
@@ -178,5 +198,38 @@ export class Repo {
 
       return { recomputed, restored };
     });
+  }
+
+  /**
+   * 발표용 더미를 넣는다. 이전 더미는 지우고 새로 넣으며, 실제 명단의 군번과 겹치는 더미는 뺀다.
+   * 원본(raw/)은 쓰지 않고 상태에만 한 번에 저장한다.
+   */
+  seedDummy(data: { members: RosterMember[]; sessions: DummySession[] }): Promise<{ members: number; sessions: number }> {
+    return this.change(draft => {
+      removeDummy(draft);
+
+      const realIds = new Set(draft.members.map(m => m.id));
+      const members = data.members.filter(m => !realIds.has(m.id)).map(m => ({ ...m, dummy: true }));
+      const allowed = new Set(members.map(m => m.id));
+      const takenSessionIds = new Set(draft.sessions.map(s => s.id));
+      const sessions: StoredSession[] = data.sessions
+        .filter(s => allowed.has(s.memberId) && !takenSessionIds.has(s.raw.Id))
+        .map(s => ({
+          ...summarize(s.raw, this.config),
+          memberId: s.memberId,
+          simulatorId: String(s.raw.SimulatorId ?? DEFAULT_SIMULATOR),
+          receivedAt: s.receivedAt,
+          rawKey: rawKeyOf(s.raw.Id, new Date(s.receivedAt)),
+          dummy: true,
+        }));
+
+      draft.members.push(...members);
+      draft.sessions.push(...sessions);
+      return { members: members.length, sessions: sessions.length };
+    });
+  }
+
+  clearDummy(): Promise<{ members: number; sessions: number }> {
+    return this.change(removeDummy);
   }
 }

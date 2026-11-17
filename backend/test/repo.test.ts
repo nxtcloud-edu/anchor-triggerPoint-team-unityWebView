@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config';
+import { generateDummy } from '../src/domain/dummy';
 import { Repo } from '../src/repo';
 import { createFsStorage } from '../src/storage/fs';
 import type { Storage } from '../src/storage/storage';
@@ -136,6 +137,78 @@ describe('Repo', () => {
       memberId: null,
       receivedAt: NOW.toISOString(),
       simulatorId: '1',
+    });
+  });
+
+  describe('dummy data', () => {
+    const small = () => generateDummy(NOW, { count: 6, platoons: 3 });
+
+    it('adds dummy people and sessions without writing raw files', async () => {
+      const repo = await Repo.open(storage, config);
+      const data = small();
+
+      expect(await repo.seedDummy(data)).toEqual({ members: 6, sessions: data.sessions.length });
+      expect(repo.state.members.every(m => m.dummy)).toBe(true);
+      expect(repo.state.sessions.every(s => s.dummy && s.counted)).toBe(true);
+      expect(await storage.listRaw()).toEqual([]);
+
+      const reopened = await Repo.open(storage, config);
+      expect(reopened.state.sessions).toHaveLength(data.sessions.length);
+    });
+
+    it('replaces earlier dummy data and keeps real people and sessions', async () => {
+      const repo = await Repo.open(storage, config);
+      await repo.upsertRoster('26-1,홍길동,3');
+      await repo.assignSimulator('1', '26-1', NOW);
+      await repo.ingest(loadFixture('hit10'), NOW);
+
+      await repo.seedDummy(small());
+      await repo.seedDummy(small());
+
+      expect(repo.state.members.filter(m => m.dummy)).toHaveLength(6);
+      expect(repo.state.members.find(m => m.id === '26-1')?.dummy).toBeUndefined();
+      expect(repo.state.sessions.filter(s => !s.dummy)).toHaveLength(1);
+      expect(repo.state.sessions.filter(s => s.dummy)).toHaveLength(small().sessions.length);
+    });
+
+    it('skips dummy people whose 군번 is already in the real roster', async () => {
+      const repo = await Repo.open(storage, config);
+      const data = small();
+      await repo.upsertRoster(`${data.members[0].id},실제사람,9`);
+
+      const result = await repo.seedDummy(data);
+      expect(result.members).toBe(5);
+      expect(repo.state.members.find(m => m.id === data.members[0].id)).toMatchObject({
+        name: '실제사람',
+        platoonNo: 9,
+      });
+      expect(repo.state.sessions.some(s => s.memberId === data.members[0].id)).toBe(false);
+    });
+
+    it('clears only dummy data and releases what pointed at dummy people', async () => {
+      const repo = await Repo.open(storage, config);
+      await repo.upsertRoster('26-1,홍길동,3');
+      const data = small();
+      await repo.seedDummy(data);
+      const dummyId = data.members[0].id;
+      const real = await repo.ingest(loadFixture('hit10'), NOW);
+      await repo.assignSession(real.id, dummyId);
+      await repo.assignSimulator('1', dummyId, NOW);
+
+      expect(await repo.clearDummy()).toEqual({ members: 6, sessions: data.sessions.length });
+      expect(repo.state.members.map(m => m.id)).toEqual(['26-1']);
+      expect(repo.state.sessions).toHaveLength(1);
+      expect(repo.state.sessions[0].memberId).toBeNull();
+      expect(repo.state.simulators['1']).toEqual({ memberId: null, assignedAt: null });
+    });
+
+    it('leaves dummy sessions alone when recomputing', async () => {
+      const repo = await Repo.open(storage, config);
+      await repo.ingest(loadFixture('hit10'), NOW);
+      await repo.seedDummy(small());
+
+      expect(await repo.recompute()).toEqual({ recomputed: 1, restored: 0 });
+      expect(repo.state.sessions.filter(s => s.dummy)).toHaveLength(small().sessions.length);
     });
   });
 

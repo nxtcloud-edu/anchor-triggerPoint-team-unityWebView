@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Dashboard, MemberDetail, RecentSession, SimulatorSlot } from '../../frontend/src/api/types';
 import { createApp } from '../src/app';
 import { loadConfig } from '../src/config';
+import { generateDummy } from '../src/domain/dummy';
 import { Repo } from '../src/repo';
 import { createFsStorage } from '../src/storage/fs';
 import { loadFixture } from './helpers';
@@ -186,6 +187,26 @@ describe('HTTP API', () => {
       body: '{not json',
     });
     expect(broken.status).toBe(400);
+  });
+
+  it('does not reveal which people or sessions are dummy data', async () => {
+    const config = loadConfig(ENV);
+    const repo = await Repo.open(createFsStorage(dir), config);
+    const data = generateDummy(NOW, { count: 3, platoons: 1 });
+    await repo.seedDummy(data);
+    const app = createApp(repo, config, () => NOW);
+    const auth = await login(app);
+
+    for (const path of [
+      `/api/members/${data.members[0].id}`,
+      '/api/members',
+      '/api/dashboard?range=30',
+      '/api/sessions/recent',
+    ]) {
+      const res = await app.request(path, { headers: auth });
+      expect(res.status).toBe(200);
+      expect(await res.text()).not.toContain('dummy');
+    }
   });
 
   it('enforces the ingest key when configured', async () => {

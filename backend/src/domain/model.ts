@@ -5,6 +5,8 @@ export interface RosterMember {
   id: string;
   name: string;
   platoonNo: number;
+  /** 발표용 더미 — 화면 응답에는 나가지 않고, 더미 지우기로만 지운다 */
+  dummy?: boolean;
 }
 
 export interface SimulatorAssignment {
@@ -35,6 +37,8 @@ export interface StoredSession {
   clicksH: number;
   clicksV: number;
   durationMin: number;
+  /** 발표용 더미 — 원본(raw/)이 없으므로 다시 계산하지 않는다 */
+  dummy?: boolean;
 }
 
 export interface CompanyInfo {
