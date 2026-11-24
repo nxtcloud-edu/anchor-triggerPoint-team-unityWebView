@@ -7,9 +7,10 @@ import type { Dashboard, MemberDetail, RecentSession, SimulatorSlot } from '../.
 import { createApp } from '../src/app';
 import { loadConfig } from '../src/config';
 import { generateDummy } from '../src/domain/dummy';
+import { Photos } from '../src/photos';
 import { Repo } from '../src/repo';
 import { createFsStorage } from '../src/storage/fs';
-import { loadFixture } from './helpers';
+import { loadFixture, putAssets } from './helpers';
 
 const NOW = new Date('2026-11-11T14:00:00+09:00');
 const ENV = { STORAGE: 'fs', ADMIN_USERNAME: 'admin', ADMIN_PASSWORD: 'pw', AUTH_SECRET: 'secret' };
@@ -187,6 +188,52 @@ describe('HTTP API', () => {
       body: '{not json',
     });
     expect(broken.status).toBe(400);
+  });
+
+  it('serves a signed target photo for each photographed session', async () => {
+    const config = loadConfig(ENV);
+    const storage = createFsStorage(dir);
+    await putAssets(storage);
+    const repo = await Repo.open(storage, config);
+    const photos = await Photos.create(storage, repo, config);
+    const app = createApp(repo, config, () => NOW, photos);
+    const auth = await login(app);
+
+    await app.request('/api/roster', { method: 'POST', headers: auth, body: JSON.stringify({ text: '26-1,홍길동,3' }) });
+    await app.request('/api/simulators/1', { method: 'PUT', headers: auth, body: JSON.stringify({ memberId: '26-1' }) });
+    expect((await postSession(app, loadFixture('hit10'))).status).toBe(202);
+    await photos.idle();
+
+    const res = await app.request('/api/me/26-1');
+    const text = await res.text();
+    expect(text).not.toContain('photoKey');
+    const detail = JSON.parse(text) as MemberDetail;
+    const url = detail.sessions[0].photoUrl!;
+    expect(url).toMatch(/^\/api\/photos\/fe7c8c5c4d3d4df89064a36289684bf6\?exp=\d+&sig=/);
+
+    const photo = await app.request(url);
+    expect(photo.status).toBe(200);
+    expect(photo.headers.get('Content-Type')).toBe('image/jpeg');
+    expect((await photo.arrayBuffer()).byteLength).toBeGreaterThan(1000);
+
+    expect((await app.request(url.replace('sig=', 'sig=x'))).status).toBe(403);
+    expect((await app.request('/api/photos/fe7c8c5c4d3d4df89064a36289684bf6')).status).toBe(403);
+  });
+
+  it('leaves photo urls out when the art is missing', async () => {
+    const config = loadConfig(ENV);
+    const storage = createFsStorage(dir);
+    const repo = await Repo.open(storage, config);
+    const photos = await Photos.create(storage, repo, config);
+    const app = createApp(repo, config, () => NOW, photos);
+    const auth = await login(app);
+    await app.request('/api/roster', { method: 'POST', headers: auth, body: JSON.stringify({ text: '26-1,홍길동,3' }) });
+    await app.request('/api/simulators/1', { method: 'PUT', headers: auth, body: JSON.stringify({ memberId: '26-1' }) });
+    await postSession(app, loadFixture('hit10'));
+    await photos.idle();
+
+    const detail = (await (await app.request('/api/me/26-1')).json()) as MemberDetail;
+    expect(detail.sessions[0].photoUrl).toBeUndefined();
   });
 
   it('does not reveal which people or sessions are dummy data', async () => {

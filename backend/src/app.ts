@@ -4,6 +4,7 @@ import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import type {
   AdminUser,
+  MemberDetail,
   MemberQuery,
   MemberSortKey,
   MemberStatus,
@@ -19,13 +20,14 @@ import {
   platoonSummaries,
 } from './domain/aggregate';
 import type { UnitySession } from './domain/unity';
+import type { Photos } from './photos';
 import { ValidationError, type Repo } from './repo';
 
 const ADMIN: AdminUser = { id: 'admin', name: '관리자', role: 'admin' };
 const SORT_KEYS: MemberSortKey[] = ['id', 'name', 'platoonName', 'sessionCount', 'best', 'last', 'score', 'lastDate'];
 const STATUSES: MemberStatus[] = ['영점 완료', '재훈련 필요'];
 
-const message = (c: Context, status: 400 | 401 | 404 | 429 | 500 | 503, text: string) =>
+const message = (c: Context, status: 400 | 401 | 403 | 404 | 429 | 500 | 503, text: string) =>
   c.json({ message: text }, status);
 
 /** 관리자 계정 하나가 공개 HTTP 80번에 열려 있으므로, 같은 주소에서 연달아 틀리면 잠근다 */
@@ -56,9 +58,28 @@ const readBody = async (c: Context): Promise<Record<string, unknown> | null> => 
 };
 
 /** README의 API 계약 + 사격 배치·명단 API. 경로와 응답은 설계 문서 §9 */
-export const createApp = (repo: Repo, config: Config, clock: () => Date = () => new Date()) => {
+export const createApp = (
+  repo: Repo,
+  config: Config,
+  clock: () => Date = () => new Date(),
+  photos?: Photos,
+) => {
   const app = new Hono();
   const view = () => buildView(repo.state, clock());
+
+  /** 세션마다 표적 사진 임시 주소를 붙인다. 아직 사진이 없으면 만들기를 예약한다 */
+  const withPhotos = async (detail: MemberDetail): Promise<MemberDetail> => {
+    if (!photos?.enabled) return detail;
+    const sessions = await Promise.all(
+      detail.sessions.map(async s => {
+        const stored = repo.state.sessions.find(x => x.id === s.id);
+        const photoUrl = stored ? await photos.urlFor(stored, clock()) : undefined;
+        if (!photoUrl) photos.enqueue(s.id);
+        return photoUrl ? { ...s, photoUrl } : s;
+      }),
+    );
+    return { ...detail, sessions };
+  };
 
   if (config.corsOrigins.length) {
     app.use(
@@ -143,15 +164,30 @@ export const createApp = (repo: Repo, config: Config, clock: () => Date = () => 
     return c.json(listMembers(view(), query));
   });
 
-  app.get('/api/members/:id', admin, c => {
+  app.get('/api/members/:id', admin, async c => {
     const data = buildMemberDetail(view(), c.req.param('id'));
-    return data ? c.json(data) : message(c, 404, '인원을(를) 찾을 수 없습니다');
+    return data ? c.json(await withPhotos(data)) : message(c, 404, '인원을(를) 찾을 수 없습니다');
   });
 
   // 사용자 본인 대시보드 — 군번만 알면 열린다 (README에 적힌 알려진 위험)
-  app.get('/api/me/:id', c => {
+  app.get('/api/me/:id', async c => {
     const data = buildMemberDetail(view(), c.req.param('id'));
-    return data ? c.json(data) : message(c, 404, '인원을(를) 찾을 수 없습니다');
+    return data ? c.json(await withPhotos(data)) : message(c, 404, '인원을(를) 찾을 수 없습니다');
+  });
+
+  // 로컬 폴더 저장소일 때만 쓰는 사진 주소. <img> 는 헤더를 못 보내므로 서명으로 확인한다
+  app.get('/api/photos/:id', async c => {
+    const id = c.req.param('id');
+    if (!photos?.verifyLocal(id, c.req.query('exp') ?? '', c.req.query('sig') ?? '', clock())) {
+      return message(c, 403, '사진 주소가 맞지 않거나 만료됐습니다');
+    }
+    const stored = repo.state.sessions.find(s => s.id === id);
+    const jpeg = stored ? await photos.read(stored) : null;
+    if (!jpeg) return message(c, 404, '사진이 없습니다');
+    return c.body(new Uint8Array(jpeg), 200, {
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'private, max-age=3600',
+    });
   });
 
   /* 유니티 수신 — ShootingResultSender 제한 시간(2초) 안에 응답한다 */
@@ -161,7 +197,9 @@ export const createApp = (repo: Repo, config: Config, clock: () => Date = () => 
     }
     const body = await readBody(c);
     if (!body) return message(c, 400, '세션 JSON을 읽지 못했습니다');
-    await repo.ingest(body as unknown as UnitySession, clock());
+    const session = await repo.ingest(body as unknown as UnitySession, clock());
+    // 사진은 응답 뒤 백그라운드로 — 유니티 쪽 제한 시간(2초)에 영향을 주지 않는다
+    photos?.enqueue(session.id);
     return c.json({ ok: true }, 202);
   });
 

@@ -26,6 +26,10 @@ export interface UnityShot {
   Tracking: string;
   TrackingStability: number;
   Trace?: UnityTrace;
+  /** 결과 창이 탄흔을 그리는 표적 상자 앞면 비율 좌표 (-0.5 ~ 0.5). 이 값을 보내는 빌드부터 있다 */
+  HasFace?: boolean;
+  FaceX?: number;
+  FaceY?: number;
 }
 
 export interface UnitySession {

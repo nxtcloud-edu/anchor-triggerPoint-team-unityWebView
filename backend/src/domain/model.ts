@@ -39,6 +39,8 @@ export interface StoredSession {
   durationMin: number;
   /** 발표용 더미 — 원본(raw/)이 없으므로 다시 계산하지 않는다 */
   dummy?: boolean;
+  /** 표적 사진이 저장된 키 (photos/...). 화면 응답에는 내보내지 않고 임시 주소로 바꿔 준다 */
+  photoKey?: string;
 }
 
 export interface CompanyInfo {

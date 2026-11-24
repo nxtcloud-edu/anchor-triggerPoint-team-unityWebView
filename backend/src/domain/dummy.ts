@@ -1,3 +1,4 @@
+import { TARGET_STAGE01 } from '../photo/render';
 import type { RosterMember } from './model';
 import type { UnityShot, UnitySession, UnityTrace } from './unity';
 
@@ -44,7 +45,14 @@ const SAMPLES = 36;
 const FIRE = 25;
 const BEFORE = 15;
 const HOURS = [9, 9, 10, 10, 10, 11, 13, 14, 14, 15, 15, 16, 17, 19, 20];
-const MISS_RADIUS_CM = 15;
+
+/** 표적 종이(A4) 안에 맞은 탄만 명중 — 표적 사진과 같은 링 측정값으로 채점 중심 기준 cm 경계를 구한다 */
+const PX_PER_CM = TARGET_STAGE01.pxPerM / 100;
+const onPaper = (x: number, y: number) =>
+  x >= -TARGET_STAGE01.ringCx / PX_PER_CM &&
+  x <= (TARGET_STAGE01.width - TARGET_STAGE01.ringCx) / PX_PER_CM &&
+  y <= TARGET_STAGE01.ringCy / PX_PER_CM &&
+  y >= -(TARGET_STAGE01.height - TARGET_STAGE01.ringCy) / PX_PER_CM;
 
 const SUR =
   '김이박최정강조윤장임한오서신권황안송류홍전고문양손배백허유남심노하곽성차주우구민진나지엄채원천방공현함변염여추도소석선설마길연위표명기반왕금옥육인맹제모탁국어은편용예경봉사부'.split(
@@ -180,7 +188,7 @@ const makeSession = (rng: Rng, shooter: Shooter, k: number, receivedAt: Date): U
     const x = mpiX + rng.normal(0, spread);
     const y = mpiY + rng.normal(0, spread);
     const r = Math.hypot(x, y);
-    const hit = r <= MISS_RADIUS_CM && rng.next() > (1 - sk) * 0.04;
+    const hit = onPaper(x, y) && rng.next() > (1 - sk) * 0.04;
     return {
       Index: i + 1,
       Time: round(time, 3),

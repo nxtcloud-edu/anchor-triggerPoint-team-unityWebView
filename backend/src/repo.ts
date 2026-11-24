@@ -173,8 +173,15 @@ export class Repo {
       for (const [i, session] of draft.sessions.entries()) {
         if (session.dummy) continue;
         const raw = (await this.storage.getRaw(session.rawKey)) as StoredRaw;
-        const { memberId, simulatorId, receivedAt, rawKey } = session;
-        draft.sessions[i] = { ...summarize(raw, this.config), memberId, simulatorId, receivedAt, rawKey };
+        const { memberId, simulatorId, receivedAt, rawKey, photoKey } = session;
+        draft.sessions[i] = {
+          ...summarize(raw, this.config),
+          memberId,
+          simulatorId,
+          receivedAt,
+          rawKey,
+          ...(photoKey ? { photoKey } : {}),
+        };
         recomputed++;
       }
 
@@ -231,5 +238,19 @@ export class Repo {
 
   clearDummy(): Promise<{ members: number; sessions: number }> {
     return this.change(removeDummy);
+  }
+
+  /** 세션 Id → 사진 키. 이미 지워진 세션은 건너뛴다 */
+  setPhotoKeys(keys: Record<string, string>): Promise<number> {
+    return this.change(draft => {
+      let count = 0;
+      for (const s of draft.sessions) {
+        if (keys[s.id]) {
+          s.photoKey = keys[s.id];
+          count++;
+        }
+      }
+      return count;
+    });
   }
 }

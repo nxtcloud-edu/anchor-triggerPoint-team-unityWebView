@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { State } from '../domain/model';
 import { RAW_PREFIX, STATE_KEY, type Storage } from './storage';
@@ -14,16 +14,30 @@ export const createFsStorage = (dir: string): Storage => {
     return target;
   };
 
-  const writeJson = async (key: string, body: unknown) => {
+  const write = async (key: string, body: string | Buffer) => {
     const target = file(key);
     await mkdir(path.dirname(target), { recursive: true });
     // 쓰다가 끊겨도 기존 파일이 깨지지 않게 임시 파일에 쓰고 바꿔 넣는다
     const temp = `${target}.tmp`;
-    await writeFile(temp, JSON.stringify(body), 'utf8');
+    await writeFile(temp, body);
     await rename(temp, target);
   };
 
   const readJson = async (key: string) => JSON.parse(await readFile(file(key), 'utf8')) as unknown;
+
+  /** 접두어 폴더 아래 파일 키 목록 */
+  const listFiles = async (prefix: string, extension = '') => {
+    try {
+      const entries = await readdir(file(prefix), { recursive: true, withFileTypes: true });
+      return entries
+        .filter(e => e.isFile() && e.name.endsWith(extension) && !e.name.endsWith('.tmp'))
+        .map(e => path.relative(root, path.join(e.parentPath, e.name)).split(path.sep).join('/'))
+        .sort();
+    } catch (error) {
+      if (isMissing(error)) return [];
+      throw error;
+    }
+  };
 
   return {
     async readState() {
@@ -34,20 +48,24 @@ export const createFsStorage = (dir: string): Storage => {
         throw error;
       }
     },
-    writeState: state => writeJson(STATE_KEY, state),
-    putRaw: (key, body) => writeJson(key, body),
+    writeState: state => write(STATE_KEY, JSON.stringify(state)),
+    putRaw: (key, body) => write(key, JSON.stringify(body)),
     getRaw: key => readJson(key),
-    async listRaw() {
+    listRaw: () => listFiles(RAW_PREFIX, '.json'),
+    putObject: (key, body) => write(key, body),
+    async getObject(key) {
       try {
-        const entries = await readdir(path.join(root, RAW_PREFIX), { recursive: true, withFileTypes: true });
-        return entries
-          .filter(e => e.isFile() && e.name.endsWith('.json'))
-          .map(e => path.relative(root, path.join(e.parentPath, e.name)).split(path.sep).join('/'))
-          .sort();
+        return await readFile(file(key));
       } catch (error) {
-        if (isMissing(error)) return [];
+        if (isMissing(error)) return null;
         throw error;
       }
     },
+    async deletePrefix(prefix) {
+      const keys = await listFiles(prefix);
+      await rm(file(prefix), { recursive: true, force: true });
+      return keys.length;
+    },
+    presign: async () => null,
   };
 };

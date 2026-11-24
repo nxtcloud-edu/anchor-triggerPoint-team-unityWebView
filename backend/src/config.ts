@@ -14,6 +14,8 @@ export interface Config {
   countedProfiles: string[];
   /** 값이 있으면 시작할 때 저장된 시뮬레이터 대수를 이 값으로 바꾼다 */
   simulatorCount?: number;
+  /** S3 임시 주소가 브라우저에서 열리지 않을 때, 서버가 사진을 직접 내주도록 바꾼다 */
+  photoProxy: boolean;
 }
 
 const list = (value: string | undefined, fallback: string[] = []) =>
@@ -56,5 +58,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     clickCmAt100mV: num(env.CLICK_CM_AT_100M_V, 3),
     countedProfiles: list(env.COUNTED_TARGET_PROFILES, ['IndoorTargetScore']),
     simulatorCount: env.SIMULATOR_COUNT ? Math.max(1, Math.floor(num(env.SIMULATOR_COUNT, 1))) : undefined,
+    photoProxy: env.PHOTO_PROXY === 'true',
   };
 };
