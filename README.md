@@ -295,6 +295,7 @@ pnpm dev --host 0.0.0.0 --port 8000
 
 - `ShootingSessionRecord` 에 `public string SimulatorId;` 를 추가하고, `ShootingResultSender` 가 보내기 전에 값을 채웁니다 (기본 `"1"`, 없으면 서버가 1번으로 봄)
 - `ShootingResultSender.DEFAULT_URL` 을 `http://<EC2 퍼블릭 IP>/api/session` 으로 (80 포트라 번호 생략). EC2 를 켤 때마다 IP 가 바뀝니다
+- (선택, 표적 사진을 결과 창과 픽셀까지 같게) `ShotRecord` 에 `public bool HasFace; public double FaceX; public double FaceY;` 를 추가하고, `ShootingSessionRecorder.AttachHit` 에서 `if (_profile == null) return;` **앞에** `frame.TryNormalizeOnFace(point, out Vector2 face)` 가 성공하면 세 값을 채웁니다 (`ShootingRecordMath.Round(face.x, 4)` 등)
 
 **6) 발표용 더미 데이터 (선택)**
 
@@ -312,6 +313,23 @@ sudo $(which node) --import tsx src/server.ts                 # 서버 다시 �
 - 실제 인원은 지금처럼 명단 붙여넣기 → 사격 배치 → 사격으로 더하면 더미 사이에 섞여 보입니다
 - 더미를 지울 때, 실제 세션이 더미 사람에게 옮겨져 있었으면 미배정으로 돌아가고 더미 사람에게 걸린 배치는 해제됩니다
 - 머리말의 "Unity 시뮬레이터 N대" 는 `backend/.env` 의 `SIMULATOR_COUNT` 로 바꿉니다
+
+**7) 세션별 표적 사진**
+
+유니티 결과 창과 같은 그림(A4 종이 표적 + 탄흔)을 서버가 세션마다 만들어 `photos/<세션Id>.jpg` 에 암호화 저장하고(더미는 `photos/dummy/`), 개인 대시보드의 표적지 카드 `[표적 사진]` 과 리포트 목록 `[표적 사진]` 버튼에서 보여 줍니다. 브라우저는 서버가 붙여 주는 1시간짜리 https 임시 주소로 S3 에서 직접 받습니다.
+
+재료 이미지 두 장은 유니티 에셋이라 공개 저장소에 넣지 않고, **S3 에 한 번 올립니다**. 9080 편집기 왼쪽 탐색기의 홈 폴더에 두 파일을 끌어다 놓은 뒤:
+
+```bash
+aws s3 cp ~/Tablet_ShootingTarget.png s3://anchor-edu-01-s3/assets/stage01-target.png   # Assets/Art/UI/Tablet_ShootingTarget.png
+aws s3 cp ~/BulletHoleSheet.png      s3://anchor-edu-01-s3/assets/bullet-hole-sheet.png # Assets/Art/Bullet_hole/BulletHoleSheet.png
+```
+
+- 서버를 다시 켜면 첫 줄 끝에 `표적 사진 켜짐` 이 나옵니다 (재료가 없으면 `꺼짐`, 나머지 기능은 그대로)
+- 사진은 세션을 받은 직후 만들고, 사진이 없던 예전 세션은 그 사람의 대시보드를 처음 열 때 만듭니다 (다음 새로고침부터 보임)
+- 더미 사진은 `seed.ts` 를 다시 실행하면 함께 만들어집니다 (1,000장 약 1~2분). `--clear` 는 더미 사진도 지웁니다
+- 사진이 브라우저에서 안 열리면 `backend/.env` 에 `PHOTO_PROXY=true` 를 넣고 서버를 다시 켜세요 (서버가 직접 내줌)
+- 탄흔 위치: 유니티가 탄마다 표적 앞면 좌표(`HasFace`, `FaceX`, `FaceY`)를 보내면 결과 창과 똑같은 자리, 안 보내면 채점 좌표로 계산한 자리 (1~2px 차이)
 
 **집계 규칙 (요약)**
 
@@ -342,6 +360,7 @@ sudo $(which node) --import tsx src/server.ts                 # 서버 다시 �
 │   │   ├── app.ts · auth.ts         # HTTP 라우트 · 관리자 토큰
 │   │   ├── repo.ts                  # 상태 변경과 저장 (수신 · 명단 · 배치 · 옮기기)
 │   │   ├── domain/                  # 유니티 형식 · 변환 · 지표 · 명단 파싱 · 집계 · 발표용 더미 생성
+│   │   ├── photo/ · photos.ts       # 표적 사진 합성 (결과 창과 같은 계산) · 생성 큐 · 임시 주소
 │   │   ├── storage/                 # S3 / 로컬 폴더 저장소
 │   │   └── scripts/                 # recompute (원본으로 다시 계산) · seed (발표용 더미 넣기·지우기)
 │   └── test/                        # vitest (실제 유니티 세션 고정 데이터 포함)
