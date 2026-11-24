@@ -144,6 +144,8 @@ export interface Session {
   hitCount?: number;
   stageName?: string;
   simulatorId?: string;
+  /** 유니티 결과 창과 같은 탄흔 표적 사진 (임시 주소, 1시간 유효). 아직 없으면 생략 */
+  photoUrl?: string;
 }
 
 export interface MemberDetail extends Member {

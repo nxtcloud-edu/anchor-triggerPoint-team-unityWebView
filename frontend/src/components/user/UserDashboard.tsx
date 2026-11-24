@@ -5,6 +5,9 @@ import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Legend } from '@/components/ui/Legend';
+import { Segmented } from '@/components/ui/Segmented';
+import { Select } from '@/components/ui/Select';
+import { PhotoModal } from '@/components/user/PhotoModal';
 import { MIN_HITS, PASS_DIAMETER_CM, PASS_OFFSET_CM } from '@/constants/shooting';
 import { useToastStore } from '@/stores/toastStore';
 import { tooltipOptions, useChartColors } from '@/utils/chartTheme';
@@ -17,6 +20,7 @@ import {
   RadialLinearScale,
   Tooltip,
 } from 'chart.js';
+import { useState } from 'react';
 import { Radar } from 'react-chartjs-2';
 import { Link } from 'react-router-dom';
 
@@ -95,7 +99,26 @@ const LastSessionCard = ({ m, L, P }: { m: MemberDetail; L: Session; P?: Session
   );
 };
 
-const TargetCard = ({ L }: { L: Session }) => {
+type TargetView = 'photo' | 'sheet';
+const TARGET_VIEWS: { value: TargetView; label: string }[] = [
+  { value: 'photo', label: '표적 사진' },
+  { value: 'sheet', label: '분석 그림' },
+];
+
+const TargetCard = ({
+  sessions,
+  onOpenPhoto,
+}: {
+  sessions: Session[];
+  onOpenPhoto: (s: Session) => void;
+}) => {
+  // 실제 서버 세션에만 표적 사진이 있다 — 하나도 없으면(더미 모드) 예전처럼 최근 세션 분석 그림만
+  const hasPhotos = sessions.some(s => s.photoUrl);
+  const [selectedId, setSelectedId] = useState('');
+  const [view, setView] = useState<TargetView>('photo');
+  const L = sessions.find(s => s.id === selectedId) ?? sessions[sessions.length - 1];
+  const showPhoto = hasPhotos && view === 'photo';
+
   const last = L.rounds.length;
   // 실제 서버 세션은 탄창 하나가 회차 하나다 (거리 환산 없이 쏜 거리의 cm 그대로)
   const hint =
@@ -105,20 +128,53 @@ const TargetCard = ({ L }: { L: Session }) => {
   return (
     <Card
       className="xl:col-span-8"
-      title="표적지 · 최근 세션"
+      title={hasPhotos ? `표적지 · 세션 #${L.index}` : '표적지 · 최근 세션'}
       hint={hint}
       right={
-        <Legend
-          items={L.rounds.map((r, i) => ({
-            label: `${r.round}회차${last < 2 ? '' : i === 0 ? ' (조정 전)' : i === last - 1 ? ' (최종)' : ''}`,
-            color: ROUND_COLORS[i],
-            round: true,
-          }))}
-        />
+        hasPhotos ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={L.id} onChange={e => setSelectedId(e.target.value)}>
+              {[...sessions].reverse().map(s => (
+                <option key={s.id} value={s.id}>
+                  세션 #{s.index} · {fmtDT(s.date)}
+                </option>
+              ))}
+            </Select>
+            <Segmented options={TARGET_VIEWS} value={view} onChange={setView} />
+          </div>
+        ) : (
+          <Legend
+            items={L.rounds.map((r, i) => ({
+              label: `${r.round}회차${last < 2 ? '' : i === 0 ? ' (조정 전)' : i === last - 1 ? ' (최종)' : ''}`,
+              color: ROUND_COLORS[i],
+              round: true,
+            }))}
+          />
+        )
       }
     >
       <div className="grid grid-cols-1 items-center gap-4 md:grid-cols-[minmax(0,1fr)_200px]">
-        <TargetSheet session={L} />
+        {showPhoto ? (
+          L.photoUrl ? (
+            <button
+              type="button"
+              onClick={() => onOpenPhoto(L)}
+              className="mx-auto block w-full max-w-[340px] cursor-zoom-in"
+            >
+              <img
+                src={L.photoUrl}
+                alt={`세션 #${L.index} 표적 사진`}
+                className="block w-full rounded-lg"
+              />
+            </button>
+          ) : (
+            <div className="py-16 text-center text-text-muted">
+              표적 사진을 만드는 중입니다. 잠시 뒤 새로고침하세요.
+            </div>
+          )
+        ) : (
+          <TargetSheet session={L} />
+        )}
         <div className="flex flex-col gap-2.5 text-[13px]">
           {L.rounds.map(r => (
             <KeyValue key={r.round} k={`${r.round}회차 탄착군`} v={cm(L, r.diameter)} />
@@ -290,7 +346,13 @@ const CoachCard = ({ m, L }: { m: MemberDetail; L: Session }) => {
   );
 };
 
-const ReportsCard = ({ sessions }: { sessions: Session[] }) => {
+const ReportsCard = ({
+  sessions,
+  onOpenPhoto,
+}: {
+  sessions: Session[];
+  onOpenPhoto: (s: Session) => void;
+}) => {
   const toast = useToastStore(s => s.show);
   return (
     <Card
@@ -313,6 +375,15 @@ const ReportsCard = ({ sessions }: { sessions: Session[] }) => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {s.photoUrl && (
+                <button
+                  type="button"
+                  onClick={() => onOpenPhoto(s)}
+                  className="cursor-pointer rounded-md border border-accent bg-bg-accent-wash px-2 py-[3px] text-[11.5px] font-semibold text-accent hover:opacity-90"
+                >
+                  표적 사진
+                </button>
+              )}
               {s.report === 'run' && <Badge tone="run">생성 중</Badge>}
               {s.report === 'fail' && <Badge tone="crit">재생성 대기</Badge>}
               {s.report === 'ok' &&
@@ -343,6 +414,7 @@ interface UserDashboardProps {
 /** 개인 대시보드 본문 — 관리자 화면(/users/:id)과 사용자 본인 화면(/me/:id)이 함께 쓴다 */
 export const UserDashboard = ({ member: m, linkPlatoon = false }: UserDashboardProps) => {
   const toast = useToastStore(s => s.show);
+  const [photo, setPhoto] = useState<Session | null>(null);
   const S = m.sessions;
   const L = S[S.length - 1] as Session | undefined;
   const P = S.length > 1 ? S[S.length - 2] : undefined;
@@ -387,10 +459,10 @@ export const UserDashboard = ({ member: m, linkPlatoon = false }: UserDashboardP
       {L ? (
         <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-12">
           <LastSessionCard m={m} L={L} P={P} />
-          <TargetCard L={L} />
+          <TargetCard sessions={S} onOpenPhoto={setPhoto} />
           <RadarCard m={m} L={L} />
           <CoachCard m={m} L={L} />
-          <ReportsCard sessions={S} />
+          <ReportsCard sessions={S} onOpenPhoto={setPhoto} />
         </div>
       ) : (
         <Card>
@@ -399,6 +471,13 @@ export const UserDashboard = ({ member: m, linkPlatoon = false }: UserDashboardP
             {linkPlatoon && ' 사격 배치에서 시뮬레이터에 배치한 뒤 사격하면 여기에 표시됩니다.'}
           </div>
         </Card>
+      )}
+      {photo && (
+        <PhotoModal
+          session={photo}
+          caption={`${fmtDT(photo.date)} · 탄착군 ${cm(photo, photo.diameter)} · ${photo.pass ? '합격' : '미달'}`}
+          onClose={() => setPhoto(null)}
+        />
       )}
     </div>
   );
