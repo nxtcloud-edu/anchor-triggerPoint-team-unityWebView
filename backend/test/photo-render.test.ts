@@ -73,6 +73,29 @@ describe('renderTargetPhoto', () => {
     expect(await pixelAt(edge, 700, 992)).toBeLessThan(60);
   });
 
+  it('rims holes with light only where the target is dark', async () => {
+    // 칸마다 지름 80px 검은 원 (나머지는 투명) — 실제 탄흔처럼 칸 가장자리가 비어 있다
+    const circles = Array.from(
+      { length: 6 },
+      (_, k) => `<circle cx="85.5" cy="${k * 171 + 85.5}" r="40" fill="#000"/>`,
+    ).join('');
+    const sheet = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="171" height="1026">${circles}</svg>`))
+      .png()
+      .toBuffer();
+    const plain = (color: string) =>
+      sharp({ create: { width: 352, height: 498, channels: 3, background: color } }).png().toBuffer();
+
+    const cx = 174.8 * 2;
+    const cy = 236.8 * 2;
+    const onBlack = await renderTargetPhoto('rim', [shot({})], { target: await plain('#000000'), sheet });
+    expect(await pixelAt(onBlack, cx, cy)).toBeLessThan(60);
+    expect(await pixelAt(onBlack, cx + 10, cy)).toBeGreaterThan(150);
+
+    const onGrey = await renderTargetPhoto('rim', [shot({})], { target: await plain('#808080'), sheet });
+    expect(await pixelAt(onGrey, cx, cy)).toBeLessThan(60);
+    expect(await pixelAt(onGrey, cx + 10, cy)).toBeLessThan(160);
+  });
+
   it('is the same picture for the same input', async () => {
     const shots = [shot({ xM: 0.02 }), shot({ yM: -0.03, index: 2 })];
     expect(await renderTargetPhoto('s4', shots, assets)).toEqual(await renderTargetPhoto('s4', shots, assets));

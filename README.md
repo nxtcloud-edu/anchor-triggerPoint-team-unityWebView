@@ -330,6 +330,8 @@ aws s3 cp ~/BulletHoleSheet.png      s3://anchor-edu-01-s3/assets/bullet-hole-sh
 - 더미 사진은 `seed.ts` 를 다시 실행하면 함께 만들어집니다 (1,000장 약 1~2분). `--clear` 는 더미 사진도 지웁니다
 - 사진이 브라우저에서 안 열리면 `backend/.env` 에 `PHOTO_PROXY=true` 를 넣고 서버를 다시 켜세요 (서버가 직접 내줌)
 - 탄흔 위치: 유니티가 탄마다 표적 앞면 좌표(`HasFace`, `FaceX`, `FaceY`)를 보내면 결과 창과 똑같은 자리, 안 보내면 채점 좌표로 계산한 자리 (1~2px 차이)
+- 검은 원(7~10점) 위의 탄흔은 검은 바탕에 묻히지 않도록 구멍 가장자리를 밝게 그립니다 (흰 바탕 탄흔은 결과 창 그대로)
+- 사진 모양이 바뀌는 업데이트를 받은 뒤에는 서버를 끄고 이미 저장된 사진을 다시 만듭니다: `sudo $(which node) --import tsx src/scripts/photos.ts`
 
 **집계 규칙 (요약)**
 

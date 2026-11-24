@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "recompute": "tsx src/scripts/recompute.ts",
     "seed": "tsx src/scripts/seed.ts",
-    "seed:clear": "tsx src/scripts/seed.ts --clear"
+    "seed:clear": "tsx src/scripts/seed.ts --clear",
+    "photos:rebuild": "tsx src/scripts/photos.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1175.0",

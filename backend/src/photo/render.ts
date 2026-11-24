@@ -86,19 +86,51 @@ export const renderTargetPhoto = async (
     return frameCache.get(k)!;
   };
 
-  const composites = [];
+  // 결과 창이 352×498 원본을 크게 늘려 보여 주듯, 부드럽게 늘린 뒤 탄흔을 얹는다
+  const base = await sharp(assets.target).resize(width, height, { kernel: 'lanczos3' }).png().toBuffer();
+  const grey = await sharp(base).greyscale().raw().toBuffer();
+  const rim = await holeRim(size);
+
+  const rims = [];
+  const holes = [];
   for (const shot of shots) {
     const c = holeCenter(shot, scale);
     // 결과 창은 표적 종이(상자 앞면)에 맞은 탄만 그린다 — 종이 밖 좌표는 빼고, 가장자리 탄은 안쪽으로 맞춘다
     if (!c || c.x < 0 || c.y < 0 || c.x > width || c.y > height) continue;
-    composites.push({
-      input: await frameImage(holeFrame(sessionId, shot.index)),
-      left: clamp(Math.round(c.x - size / 2), 0, width - size),
-      top: clamp(Math.round(c.y - size / 2), 0, height - size),
-    });
+    const left = clamp(Math.round(c.x - size / 2), 0, width - size);
+    const top = clamp(Math.round(c.y - size / 2), 0, height - size);
+    // 검은 원(7~10점) 위의 탄흔은 검은 바탕에 묻힌다 — 실제 종이처럼 구멍 가장자리를 밝게 비춘다
+    if (meanLuminance(grey, width, left, top, size) < DARK_BACKGROUND) rims.push({ input: rim, left, top });
+    holes.push({ input: await frameImage(holeFrame(sessionId, shot.index)), left, top });
   }
 
-  // 결과 창이 352×498 원본을 크게 늘려 보여 주듯, 부드럽게 늘린 뒤 탄흔을 얹는다
-  const base = await sharp(assets.target).resize(width, height, { kernel: 'lanczos3' }).png().toBuffer();
-  return sharp(base).composite(composites).jpeg({ quality: 85 }).toBuffer();
+  // 겹친 탄흔이 다른 탄흔의 밝은 가장자리에 가려지지 않도록 가장자리를 모두 먼저 깐다
+  return sharp(base)
+    .composite([...rims, ...holes])
+    .jpeg({ quality: 85 })
+    .toBuffer();
+};
+
+/** 이 값보다 어두운 바탕(평균 밝기 0~255)에만 밝은 가장자리를 깐다 */
+const DARK_BACKGROUND = 100;
+
+/** 탄흔 칸 안에서 실제 구멍은 60~80% — 그보다 조금 큰 밝은 원을 구멍 밑에 깐다 */
+const holeRim = (size: number) => {
+  const r = size * 0.45;
+  return sharp(
+    Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">` +
+        `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="#e9e7e0" fill-opacity="0.92"/></svg>`,
+    ),
+  )
+    .png()
+    .toBuffer();
+};
+
+const meanLuminance = (grey: Buffer, width: number, left: number, top: number, size: number) => {
+  let sum = 0;
+  for (let y = top; y < top + size; y++) {
+    for (let x = left; x < left + size; x++) sum += grey[y * width + x];
+  }
+  return sum / (size * size);
 };
